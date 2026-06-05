@@ -16,7 +16,6 @@ class StorageGraspTester:
     def __init__(self, node):
         self.node = node
 
-        # 1. import 구문에 release_compliance_ctrl 추가
         from DSR_ROBOT2 import (
             set_digital_output, set_tool, set_tcp, 
             movej, movel, movejx, wait, DR_BASE, DR_MV_MOD_REL,
@@ -239,8 +238,8 @@ class StorageGraspTester:
         self.movejx(self.X_OPEN_READY, vel=10, acc=10, ref=self.DR_BASE, sol=2)
         self.wait(0.5)
         self.node.get_logger().info("약통에 병따개 걸 준비 위치 도착")
-        self.movel(self.posx(-30, 0, 0, 0, 0, 0,), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
-        self.node.get_logger().info("x축 방향으로 조금 움직엿어요")
+        self.movel(self.posx(-25, 0, 0, 0, 0, 0,), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+        self.node.get_logger().info("x축 방향으로 조금 움직임")
 
         # 회전시켜서 병따개 걸기
         self.node.get_logger().info("회전시켜서 병따개 걸기")
