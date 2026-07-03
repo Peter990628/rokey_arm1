@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'move = rokey.move:main',
             'grip_test = rokey.grip_test:main',
+            'gear = rokey.gear:main'
         ],
     },
 )
