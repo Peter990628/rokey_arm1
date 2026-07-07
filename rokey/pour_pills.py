@@ -47,9 +47,57 @@ class PourPills(Node):
         self.get_digital_input = get_digital_input
         self.set_tool = set_tool
         self.set_tcp = set_tcp
-        self.movej
+        self.movej = movej
+        self.movel = movel
+        self.wait = wait
+        self.trans = trans
+        self.posj = posj
+        self.posx = posx
 
+        self.DR_BASE = DR_BASE
+        self.DR_MV_MOD_ABS = DR_MV_MOD_ABS
+        self.DR_MV_MOD_REL = DR_MV_MOD_REL
 
+        self.vel = VELOCITY
+        self.acc = ACC
+
+        self.init_robot()
+
+    def init_robot(self):
+        self.node.get_logger().info("이니셜 세팅 시작")
+        self.set_tool("뭐더라")
+        self.set_tcp("뭐더라")
+
+    def release(self):
+        node.get_logger().info("set for digital output 1 0 for grip")
+        set_digital_output(1, OFF)
+        set_digital_output(2, OFF)
+        set_digital_output(1, ON)
+        set_digital_output(2, OFF)
+        sleep(1)
+
+    def grip(self):
+        node.get_logger().info("set for digital output 0 1 for release")
+        set_digital_output(1, OFF)
+        set_digital_output(2, OFF)
+        set_digital_output(1, OFF)
+        set_digital_output(2, ON)
+        sleep(1)
+
+    def grasp(self):
+        # TODO : 집게 잡기
+    
+    def pour(self):
+        # TODO : 집게 잡고 붓기
+    
+    def move(self):
+        # TODO : 조제기로 이동 / 쓰레기 이동
+    
+    def close(self):
+        # TODO : 서랍 닫기 
+
+    def run(self):
+        # TODO : 순서대로 진행 
 
 
 def main(args=None):
@@ -58,62 +106,24 @@ def main(args=None):
 
     DR_init.__dsr__node = node
 
+    robot = None
+
     try:
-        from DSR_ROBOT2 import (
-            set_digital_output,
-            get_digital_input,
-            set_tool,
-            set_tcp,
-            movej,
-			movel,
-			task_compliance_ctrl,
-			get_tool_force,
-			amove_periodic,
-			check_position_condition,
-            wait,
-            trans,
-            set_desired_force,
-            DR_BASE,
-            DR_MV_MOD_ABS,
-            DR_MV_MOD_REL,
-            DR_AXIS_Z,
-            DR_SSTOP,
-            get_current_posx,
-            release_force,
-        )
+       robot = PourPills(node)
+       robot.run()
 
-        from DR_common2 import posj, posx
+    except KeyboardInterrupt:
+        node.get_logger().info("Keyboard Interrupt")
 
-    except ImportError as e:
-        node.get_logger().info(f"Error importing DSR_ROBOT2 : {e}")
-        return
+    except Exception as e:
+        node.get_logger().error(f"Robot error: {e}")
 
-    def release():
-        node.get_logger().info("set for digital output 1 0 for grip")
-        set_digital_output(1, OFF)
-        set_digital_output(2, OFF)
-        set_digital_output(1, ON)
-        set_digital_output(2, OFF)
-        sleep(1)
+    finally:
+        if node is not None:
+            node.destroy_node()
+        rclpy.shutdown()
 
-    def grip():
-        node.get_logger().info("set for digital output 0 1 for release")
-        set_digital_output(1, OFF)
-        set_digital_output(2, OFF)
-        set_digital_output(1, OFF)
-        set_digital_output(2, ON)
-        sleep(1)
 
-    def grasp():
-        # TODO : 집게 잡기
-    
-    def pour():
-        # TODO : 집게 잡고 붓기
-    
-    def move():
-        # TODO : 조제기로 이동 / 쓰레기 이동
-    
-    def close():
-        # TODO : 서랍 닫기 
-    
+if __name__ == "__main__":
+    main()
 
