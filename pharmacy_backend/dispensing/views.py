@@ -43,6 +43,15 @@ class PrescriptionCreateAPIView(APIView):
     - Event 생성
     - EventItem 생성
     - dispensing_stock 즉시 감소
+--- 수정 후 (장고에서 판단 추가)
+    Event 전체 상태:
+    - 모든 항목 READY면 Event.status = WAITING
+    - 하나라도 REFILL_REQUIRED면 Event.status = REFILL_REQUIRED
+
+    처리 기준:
+    - 각 약 항목의 quantity와 medicine.dispensing_stock 비교
+    - quantity <= dispensing_stock 이면 EventItem.status = READY
+    - quantity > dispensing_stock 이면 EventItem.status = REFILL_REQUIRED
     """
 
     @transaction.atomic
@@ -56,6 +65,8 @@ class PrescriptionCreateAPIView(APIView):
         items = serializer.validated_data["items"]
 
         medicine_list = []
+        has_refill_required = False
+        refill_required_items = []
 
         for item in items:
             medicine_name = item["medicine_name"]
@@ -73,40 +84,65 @@ class PrescriptionCreateAPIView(APIView):
                     status=400
                 )
 
-            if medicine.dispensing_stock < quantity:
-                return Response(
-                    {
-                        "error": f"{medicine.medicine_name} 조제기 재고 부족",
-                        "current_dispensing_stock": medicine.dispensing_stock,
-                        "requested_quantity": quantity,
-                    },
-                    status=400
-                )
+            if quantity > medicine.dispensing_stock:
+                item_status = "REFILL_REQUIRED"
+                has_refill_required = True
 
-            medicine_list.append((medicine, quantity))
+                refill_required_items.append({
+                    "medicine_name": medicine.medicine_name,
+                    "requested_quantity": quantity,
+                    "current_dispensing_stock": medicine.dispensing_stock,
+                    "shortage": quantity - medicine.dispensing_stock,
+                })
+
+            else:
+                item_status = "READY"
+
+            medicine_list.append({
+                "medicine": medicine,
+                "quantity": quantity,
+                "status": item_status,
+            })
+
+        if has_refill_required:
+            event_status = "REFILL_REQUIRED"
+        else:
+            event_status = "WAITING"
 
         event = Event.objects.create(
             prescription_name=prescription_name,
-            status="WAITING"
+            status=event_status
         )
 
-        for order, (medicine, quantity) in enumerate(medicine_list, start=1):
+        for order, item in enumerate(medicine_list, start=1):
             EventItem.objects.create(
                 event=event,
-                medicine=medicine,
-                quantity=quantity,
-                order=order
+                medicine=item["medicine"],
+                quantity=item["quantity"],
+                order=order,
+                status=item["status"],
             )
 
-            medicine.dispensing_stock -= quantity
-            medicine.save()
+        if not has_refill_required:
+            for item in medicine_list:
+                medicine = item["medicine"]
+                quantity = item["quantity"]
+
+                medicine.dispensing_stock -= quantity
+                medicine.save()
 
         return Response(
             {
                 "event_id": event.id,
                 "prescription_name": event.prescription_name,
                 "status": event.status,
-                "message": "처방전이 등록되었고 조제기 재고가 차감되었습니다.",
+                "refill_required": has_refill_required,
+                "refill_required_items": refill_required_items,
+                "message": (
+                    "처방전이 등록되었고 제조 대기 상태입니다."
+                    if not has_refill_required
+                    else "처방전이 등록되었지만 일부 약 항목에 리필이 필요합니다."
+                ),
             },
             status=201
         )
@@ -144,13 +180,12 @@ class NextTaskAPIView(APIView):
                 "medicine_name": medicine.medicine_name,
                 "quantity": item.quantity,
                 "order": item.order,
+                "item_status": item.status,
                 "storage_location": medicine.storage_location,
                 "dispensing_location": medicine.dispensing_location,
                 "lid_type": medicine.lid_type,
                 "storage_stock": medicine.storage_stock,
-                "dispensing_stock": medicine.dispensing_stock,
-                "min_stock": medicine.min_stock,
-                "refill_needed": medicine.dispensing_stock <= medicine.min_stock,
+                "dispensing_stock": medicine.dispensing_stock
             })
 
         return Response(
@@ -190,7 +225,7 @@ class UpdateTaskStatusAPIView(APIView):
                 status=404
             )
 
-        if status_value not in ["WAITING", "PROCESSING", "DONE"]:
+        if status_value not in ["REFILL_REQUIRED", "WAITING", "PROCESSING", "DONE"]:
             return Response(
                 {
                     "error": "잘못된 status 입니다."
@@ -210,6 +245,51 @@ class UpdateTaskStatusAPIView(APIView):
             status=200
         )
 
+def refresh_refill_status_for_events():
+    """
+    REFILL_REQUIRED 상태의 Event들을 다시 검사해서,
+    각 EventItem의 status와 Event의 status를 갱신한다.
+
+    기준:
+    - item.quantity > medicine.dispensing_stock
+      → EventItem.status = REFILL_REQUIRED
+
+    - item.quantity <= medicine.dispensing_stock
+      → EventItem.status = READY
+
+    - Event 안의 모든 EventItem이 READY
+      → Event.status = WAITING
+    """
+
+    refill_events = (
+        Event.objects
+        .filter(status="REFILL_REQUIRED")
+        .prefetch_related("items__medicine")
+        .order_by("created_at")
+    )
+
+    released_event_ids = []
+
+    for event in refill_events:
+        all_ready = True
+
+        for item in event.items.all():
+            medicine = item.medicine
+
+            if item.quantity > medicine.dispensing_stock:
+                item.status = "REFILL_REQUIRED"
+                all_ready = False
+            else:
+                item.status = "READY"
+
+            item.save()
+
+        if all_ready:
+            event.status = "WAITING"
+            event.save()
+            released_event_ids.append(event.id)
+
+    return released_event_ids
 
 class RefillMedicineAPIView(APIView):
     """
@@ -283,12 +363,15 @@ class RefillMedicineAPIView(APIView):
         medicine.dispensing_stock += amount
         medicine.save()
 
+        released_event_ids = refresh_refill_status_for_events()
+
         return Response(
             {
                 "message": "리필 완료",
                 "medicine_name": medicine.medicine_name,
                 "storage_stock": medicine.storage_stock,
                 "dispensing_stock": medicine.dispensing_stock,
+                "released_event_ids": released_event_ids,
             },
             status=200
         )

@@ -21,6 +21,7 @@ class EventItemSerializer(serializers.ModelSerializer):
             "medicine_name",
             "quantity",
             "order",
+            "status"
         ]
 
 

@@ -19,15 +19,13 @@ class Medicine(models.Model):
     # 조제기 내부 재고
     dispensing_stock = models.IntegerField(default=0)
 
-    # 조제기 재고 부족 기준
-    min_stock = models.IntegerField(default=5)
-
     def __str__(self):
         return self.medicine_name
 
 
 class Event(models.Model):
     STATUS_CHOICES = [
+        ("REFILL_REQUIRED", "REFILL_REQUIRED"),
         ("WAITING", "WAITING"),
         ("PROCESSING", "PROCESSING"),
         ("DONE", "DONE"),
@@ -52,6 +50,11 @@ class Event(models.Model):
 
 
 class EventItem(models.Model):
+    ITEM_STATUS_CHOICES = [
+        ("READY", "READY"),
+        ("REFILL_REQUIRED", "REFILL_REQUIRED"),
+    ]
+
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
@@ -68,6 +71,12 @@ class EventItem(models.Model):
 
     # 처방전 안에서 약 처리 순서
     order = models.IntegerField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=ITEM_STATUS_CHOICES,
+        default="READY"
+    )
 
     def __str__(self):
         return f"{self.event.id} - {self.medicine.medicine_name} x {self.quantity}"

@@ -12,7 +12,6 @@ class MedicineAdmin(admin.ModelAdmin):
         "lid_type",
         "storage_stock",
         "dispensing_stock",
-        "min_stock",
     )
 
 
