@@ -273,7 +273,7 @@
 
       <div class="qty-stepper">
         <button type="button" class="qty-btn minus">−</button>
-        <input type="number" class="qty-input" min="1" value="1">
+        <input type="number" class="qty-input" min="1" max="50" value="1">
         <button type="button" class="qty-btn plus">+</button>
       </div>
 
@@ -330,7 +330,15 @@
     });
     row.querySelector('.qty-btn.plus').addEventListener('click', () => {
       const input = row.querySelector('.qty-input');
-      input.value = (parseInt(input.value, 10) || 1) + 1;
+      input.value = Math.min(50, (parseInt(input.value, 10) || 1) + 1);
+    });
+
+    // 숫자를 직접 타이핑해서 넣는 경우에도 1~50 범위로 강제
+    row.querySelector('.qty-input').addEventListener('input', (e) => {
+      let v = parseInt(e.target.value, 10);
+      if (isNaN(v)) return;
+      if (v > 50) e.target.value = 50;
+      if (v < 1) e.target.value = 1;
     });
 
     row.querySelector('.remove-row-btn').addEventListener('click', () => {
@@ -354,7 +362,7 @@
     const rows = [...medLinesEl.querySelectorAll('.med-line')];
     const items = rows.map(r => ({
       med_id: Number(r.querySelector('.med-value').value),
-      qty: parseInt(r.querySelector('.qty-input').value, 10) || 1,
+      qty: Math.min(50, Math.max(1, parseInt(r.querySelector('.qty-input').value, 10) || 1)),
     }));
 
     if (!patientName || items.length === 0) {
