@@ -2,17 +2,8 @@
 #
 # Django pharmacy_backend <-> ROS2 bridge node.
 # - Fetches the next WAITING prescription task from the backend.
-# - Marks it PROCESSING in the backend.
 # - Publishes the task as JSON for robot-control nodes.
 # - Publishes refill-needed signals for compatibility with simple Bool nodes.
-
-# task_manager_node.py
-#
-# 장고 약국_백엔드 <-> ROS2 브리지 노드.
-# - 백엔드에서 다음 대기 처방 작업을 가져옵니다.
-# - 백엔드에 처리 중임을 표시합니다.
-# - 로봇 제어 노드를 위한 작업을 JSON으로 게시합니다.
-# - 간단한 Bool 노드와의 호환성을 위해 리필이 필요한 신호를 게시합니다.
 
 import json
 from urllib import error, request
@@ -43,7 +34,6 @@ class Task_Manager(Node):
         self.declare_parameter("robot_ns", DEFAULT_ROBOT_NS)
         self.declare_parameter("poll_interval_sec", 1.0)
         self.declare_parameter("request_timeout_sec", 2.0)
-        self.declare_parameter("auto_mark_done", False)
 
         self.backend_base_url = (
             self.get_parameter("backend_base_url")
@@ -60,12 +50,8 @@ class Task_Manager(Node):
         self.request_timeout_sec = (
             self.get_parameter("request_timeout_sec").get_parameter_value().double_value
         )
-        self.auto_mark_done = (
-            self.get_parameter("auto_mark_done").get_parameter_value().bool_value
-        )
 
-        self.current_event_id = None
-        self.current_task = None
+        self.last_published_event_id = None
         self._logged_no_task = False
 
         self.prescription_pub = self.create_publisher(
@@ -119,10 +105,7 @@ class Task_Manager(Node):
         return name
 
     def _poll_next_task(self):
-        if self.current_event_id is not None:
-            return
-
-        status_code, task = self._request_json("GET", "/tasks/next/")
+        status_code, task = self._get_json("/tasks/next/")
 
         if status_code == 404:
             if not self._logged_no_task:
@@ -142,17 +125,13 @@ class Task_Manager(Node):
 
         event_id = task["event_id"]
 
-        if not self._set_task_status(event_id, "PROCESSING"):
+        if event_id == self.last_published_event_id:
             return
 
-        self.current_event_id = event_id
-        self.current_task = task
+        self.last_published_event_id = event_id
 
         self._publish_task(task)
-        self._publish_task_state(event_id, "PROCESSING", "작업 publish 완료")
-
-        if self.auto_mark_done:
-            self.finish_current_task()
+        self._publish_task_state(event_id, task.get("status"), "작업 publish 완료")
 
     def _is_valid_task(self, task) -> bool:
         if not isinstance(task, dict):
@@ -237,43 +216,6 @@ class Task_Manager(Node):
         msg.data = value
         publisher.publish(msg)
 
-    def finish_current_task(self) -> bool:
-        if self.current_event_id is None:
-            self.get_logger().warn("완료 처리할 현재 작업이 없습니다.")
-            return False
-
-        event_id = self.current_event_id
-
-        if not self._set_task_status(event_id, "DONE"):
-            return False
-
-        self._publish_task_state(event_id, "DONE", "작업 완료")
-        self.current_event_id = None
-        self.current_task = None
-        return True
-
-    def _set_task_status(self, event_id, status_value: str) -> bool:
-        status_code, data = self._request_json(
-            "POST",
-            "/tasks/status/",
-            {
-                "event_id": event_id,
-                "status": status_value,
-            },
-        )
-
-        if status_code != 200:
-            self.get_logger().error(
-                f"작업 상태 변경 실패: event_id={event_id}, "
-                f"status={status_value}, response={status_code} {data}"
-            )
-            return False
-
-        self.get_logger().info(
-            f"작업 상태 변경 완료: event_id={event_id}, status={status_value}"
-        )
-        return True
-
     def _publish_task_state(self, event_id, status_value: str, message: str):
         msg = String()
         msg.data = json.dumps(
@@ -286,16 +228,11 @@ class Task_Manager(Node):
         )
         self.task_state_pub.publish(msg)
 
-    def _request_json(self, method: str, path: str, payload=None):
+    def _get_json(self, path: str):
         url = f"{self.backend_base_url}{path}"
-        body = None
         headers = {"Accept": "application/json"}
 
-        if payload is not None:
-            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            headers["Content-Type"] = "application/json; charset=utf-8"
-
-        req = request.Request(url, data=body, headers=headers, method=method)
+        req = request.Request(url, headers=headers, method="GET")
 
         try:
             with request.urlopen(req, timeout=self.request_timeout_sec) as response:
