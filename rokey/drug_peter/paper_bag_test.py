@@ -8,12 +8,13 @@
 import rclpy
 import DR_init 
 from time import sleep
+from std_msgs.msg import Bool
 # from DR_common2 import *
 # from dsr_msgs2.srv import MoveStop
 
 ROBOT_ID   = "dsr01"
 ROBOT_MODEL= "m0609"
-VELOCITY, ACC = 30, 30
+VELOCITY, ACC = 30, 30 # 속도 조절
 
 DR_init.__dsr__id   = ROBOT_ID
 DR_init.__dsr__model= ROBOT_MODEL
@@ -25,6 +26,11 @@ CHECK_INTERVAL = 0.1
 def main(args=None):
     rclpy.init(args=args)
     node = rclpy.create_node("paper_bag_test", namespace=ROBOT_ID)
+    paper_bag_done_pub = node.create_publisher(
+    Bool,
+    "task_done",
+    10
+    )
 
     DR_init.__dsr__node = node
 
@@ -77,10 +83,10 @@ def main(args=None):
         set_digital_output(1, OFF)
         set_digital_output(2, ON)
         sleep(1)    
-# --------------------------------------------------------------------------------------------------------------------
+# ---------------------------------------------작업 시작-----------------------------------------------------------------------
     #go to home
     ungrip()
-    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) #go to home
+    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) # go to home
     node.get_logger().info("집으로 출발.")
     wait(0.5)
 
@@ -139,3 +145,11 @@ def main(args=None):
         ungrip()
         node.get_logger().info("목표 지점 도달 완료!")
 
+#       ------------------------작업 완료 pub 코드--------------------------------------
+        done_msg = Bool()
+        done_msg.data = True
+        paper_bag_done_pub.publish(done_msg)
+        node.get_logger().info("paper bag task done published: True")
+
+        rclpy.spin_once(node, timeout_sec=0.1)
+        wait(0.5)
