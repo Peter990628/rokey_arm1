@@ -9,8 +9,6 @@ import rclpy
 import DR_init 
 from time import sleep
 from std_msgs.msg import Bool
-# from DR_common2 import *
-# from dsr_msgs2.srv import MoveStop
 
 ROBOT_ID   = "dsr01"
 ROBOT_MODEL= "m0609"

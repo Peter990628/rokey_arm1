@@ -22,7 +22,6 @@ import json
 import math 
 import os
 import random
-import time
 from pathlib import Path
 
 # QoS(Quality of Service) 설정을 위한 라이브러리
@@ -49,6 +48,7 @@ class Task_Manager(Node):
         self.prescription = self.create_publisher(String, 'prescription', 10)
         # 사용된 약 개수
         self.used_medicine = self.create_publisher(String, 'used_medicine_num', 10)
+        # 조제실 약 개수
         self.dispensary_a_num = self.create_publisher(Bool, 'dispensary_a_num', 10) # A -> 타이레놀 
         self.dispensary_b_num = self.create_publisher(Bool, 'dispensary_b_num', 10) # B -> 탁센
         self.dispensary_c_num = self.create_publisher(Bool, 'dispensary_c_num', 10) # C -> 브루펜
@@ -60,20 +60,20 @@ class Task_Manager(Node):
 
 
     def _medicine_num_callback(self, msg: String):
+        
         pass
 
     def _prescription_callback(self, msg: String):
+        prescription = self._json_to_prescription(msg)
+        if prescription is None:
+            return
         pass
 
     def _medicine_pos_callback(self, msg: String):
         pass
 
 
-
-
-
-
-    def _json_to_msg(self, msg: String):
+    def _json_to_prescription(self, msg: String): # amr2 코드에서 가져온 것 
         """ """
         try:
             data = json.loads(msg.data)
@@ -108,6 +108,28 @@ class Task_Manager(Node):
 
 
 
+
+
+
+
+
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = Task_Manager()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
 
 
 
