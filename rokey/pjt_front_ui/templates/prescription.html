@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card form-card">
+  <form id="rxForm">
+    <div class="field-group">
+      <label class="section-label">🧑 환자 정보</label>
+      <div class="field">
+        <label>이름</label>
+        <input type="text" id="patientName" placeholder="예) 김철수" required>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="section-label">💊 처방 약품</label>
+      <div id="medLines"></div>
+      <button type="button" class="add-row-btn" id="addRowBtn">
+        <span class="add-row-label">➕ 약 추가</span>
+      </button>
+    </div>
+
+    <button type="submit" class="btn primary submit-btn">
+      📝 처방전 등록
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .form-card { max-width: 600px; padding: 32px 36px; }
+
+  .field-group { margin-bottom: 26px; }
+  .section-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mint);
+    margin-bottom: 14px;
+  }
+
+  /* ---- 약품 라인 카드 ---- */
+  .med-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 10px 10px 14px;
+    margin-bottom: 10px;
+  }
+
+  /* ---- 커스텀 콤보박스 ---- */
+  .med-combo { position: relative; flex: 1; min-width: 0; }
+  .med-combo-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 17px;
+    color: var(--text);
+    text-align: left;
+  }
+  .med-combo-trigger:hover { border-color: var(--mint); }
+  .med-combo-trigger .stock-hint {
+    font-size: 14px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .med-combo-trigger .stock-hint.low { color: var(--danger); }
+  .med-combo-trigger .chevron { color: var(--muted); flex-shrink: 0; transition: transform 0.15s; }
+  .med-combo.open .chevron { transform: rotate(180deg); }
+
+  .med-combo-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(30, 42, 36, 0.12);
+    z-index: 20;
+    display: none;
+    overflow: hidden;
+  }
+  .med-combo.open .med-combo-panel { display: block; }
+
+  .med-combo-search {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--surface-2);
+  }
+  .med-combo-search:focus { outline: none; }
+
+  .med-combo-list { max-height: 220px; overflow-y: auto; }
+  .med-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .med-option:hover { background: var(--mint-bg); }
+  .med-option .opt-stock { font-size: 14px; color: var(--muted); }
+  .med-option .opt-stock.low { color: var(--danger); font-weight: 700; }
+  .med-option-empty { padding: 14px 12px; font-size: 16px; color: var(--muted); }
+
+  /* ---- 수량 스테퍼 ---- */
+  .qty-stepper {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .qty-btn {
+    width: 30px;
+    height: 36px;
+    border: none;
+    background: none;
+    color: var(--mint);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .qty-btn:hover { background: var(--mint-bg); }
+  .qty-input {
+    width: 40px;
+    border: none;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    text-align: center;
+    font-family: inherit;
+    font-size: 17px;
+    padding: 8px 0;
+    -moz-appearance: textfield;
+  }
+  .qty-input::-webkit-outer-spin-button,
+  .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .qty-input:focus { outline: none; }
+
+  .remove-row-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .remove-row-btn:hover { background: var(--danger-bg); color: var(--danger); }
+
+  /* ---- 약 추가 버튼 ---- */
+  .add-row-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1.5px dashed var(--line);
+    background: none;
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .add-row-btn:hover { border-color: var(--mint); color: var(--mint); background: var(--mint-bg); }
+  .add-row-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    border-color: var(--line);
+    color: var(--muted);
+    background: none;
+  }
+
+  .submit-btn { width: 100%; justify-content: center; padding: 14px; font-size: 18px; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const inventory = {{ inventory | tojson }};  // [{med_id, name, count, threshold}]
+  const medLinesEl = document.getElementById('medLines');
+  let rowSeq = 0;
+
+  function isLow(item) {
+    return item.count <= (item.threshold ?? 5);
+  }
+
+  function optionListHtml(filter = '', excludeIds = []) {
+    const filtered = inventory.filter(m =>
+      m.name.includes(filter) && !excludeIds.includes(String(m.med_id))
+    );
+    if (filtered.length === 0) {
+      return '<div class="med-option-empty">🔍 일치하는 약이 없어요.</div>';
+    }
+    return filtered.map(m => `
+      <div class="med-option" data-med-id="${m.med_id}" data-med-name="${m.name}">
+        <span>💊 ${m.name}</span>
+        <span class="opt-stock ${isLow(m) ? 'low' : ''}">${isLow(m) ? '⚠️' : '📦'} ${m.count}개</span>
+      </div>
+    `).join('');
+  }
+
+  function getSelectedMedIds() {
+    return [...medLinesEl.querySelectorAll('.med-value')].map(el => el.value);
+  }
+
+  // row를 넘기면 '그 행 자신의 선택'은 제외하고, 다른 행들이 쓰고 있는 med_id만 모음
+  // (자기 자신은 계속 선택 목록에 보여야 하므로)
+  function getUsedMedIdsExcluding(row) {
+    return [...medLinesEl.querySelectorAll('.med-line')]
+      .filter(r => r !== row)
+      .map(r => r.querySelector('.med-value').value);
+  }
+
+  const addRowBtn = document.getElementById('addRowBtn');
+  const addRowLabel = addRowBtn.querySelector('.add-row-label');
+
+  function updateAddButtonState() {
+    const allUsed = getSelectedMedIds().length >= inventory.length;
+    addRowBtn.disabled = allUsed;
+    addRowLabel.textContent = allUsed ? '🎉 모든 약을 다 담았어요!' : '➕ 약 추가';
+  }
+
+  function addMedRow() {
+    const usedIds = getSelectedMedIds();
+    const first = inventory.find(m => !usedIds.includes(String(m.med_id)));
+
+    // 더 이상 추가할 약이 없으면(전부 이미 선택됨) 행 자체를 만들지 않음
+    if (!first) {
+      updateAddButtonState();
+      return;
+    }
+
+    const rowId = `row-${rowSeq++}`;
+
+    const row = document.createElement('div');
+    row.className = 'med-line';
+    row.dataset.rowId = rowId;
+    row.innerHTML = `
+      <div class="med-combo" data-row-id="${rowId}">
+        <button type="button" class="med-combo-trigger">
+          <span class="selected-label">💊 ${first.name}</span>
+          <span class="stock-hint ${isLow(first) ? 'low' : ''}">📦 ${first.count}개</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="med-combo-panel">
+          <input type="text" class="med-combo-search" placeholder="🔍 약 이름 검색">
+          <div class="med-combo-list">${optionListHtml('', usedIds)}</div>
+        </div>
+        <input type="hidden" class="med-value" value="${first.med_id}">
+      </div>
+
+      <div class="qty-stepper">
+        <button type="button" class="qty-btn minus">−</button>
+        <input type="number" class="qty-input" min="1" value="1">
+        <button type="button" class="qty-btn plus">+</button>
+      </div>
+
+      <button type="button" class="remove-row-btn" title="삭제">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>
+      </button>
+    `;
+    medLinesEl.appendChild(row);
+    wireRow(row);
+    updateAddButtonState();
+  }
+
+  function wireRow(row) {
+    const combo = row.querySelector('.med-combo');
+    const trigger = row.querySelector('.med-combo-trigger');
+    const panel = row.querySelector('.med-combo-panel');
+    const search = row.querySelector('.med-combo-search');
+    const list = row.querySelector('.med-combo-list');
+    const hiddenValue = row.querySelector('.med-value');
+    const label = row.querySelector('.selected-label');
+    const stockHint = row.querySelector('.stock-hint');
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = combo.classList.contains('open');
+      closeAllCombos();
+      if (!isOpen) {
+        combo.classList.add('open');
+        search.value = '';
+        list.innerHTML = optionListHtml('', getUsedMedIdsExcluding(row));
+        search.focus();
+      }
+    });
+
+    search.addEventListener('input', () => {
+      list.innerHTML = optionListHtml(search.value.trim(), getUsedMedIdsExcluding(row));
+    });
+
+    list.addEventListener('click', (e) => {
+      const opt = e.target.closest('.med-option');
+      if (!opt) return;
+      const medId = opt.dataset.medId;
+      const med = inventory.find(m => String(m.med_id) === medId);
+      hiddenValue.value = medId;
+      label.textContent = `💊 ${med.name}`;
+      stockHint.textContent = `📦 ${med.count}개`;
+      stockHint.classList.toggle('low', isLow(med));
+      combo.classList.remove('open');
+    });
+
+    row.querySelector('.qty-btn.minus').addEventListener('click', () => {
+      const input = row.querySelector('.qty-input');
+      input.value = Math.max(1, (parseInt(input.value, 10) || 1) - 1);
+    });
+    row.querySelector('.qty-btn.plus').addEventListener('click', () => {
+      const input = row.querySelector('.qty-input');
+      input.value = (parseInt(input.value, 10) || 1) + 1;
+    });
+
+    row.querySelector('.remove-row-btn').addEventListener('click', () => {
+      row.remove();
+      updateAddButtonState();
+    });
+  }
+
+  function closeAllCombos() {
+    document.querySelectorAll('.med-combo.open').forEach(c => c.classList.remove('open'));
+  }
+  document.addEventListener('click', closeAllCombos);
+
+  document.getElementById('addRowBtn').addEventListener('click', addMedRow);
+  addMedRow(); // 최초 1행
+
+  document.getElementById('rxForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const patientName = document.getElementById('patientName').value.trim();
+    const rows = [...medLinesEl.querySelectorAll('.med-line')];
+    const items = rows.map(r => ({
+      med_id: Number(r.querySelector('.med-value').value),
+      qty: parseInt(r.querySelector('.qty-input').value, 10) || 1,
+    }));
+
+    if (!patientName || items.length === 0) {
+      alert('🙏 환자 이름과 약 정보를 입력해주세요.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/prescriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_name: patientName, items }),
+      });
+
+      if (res.status === 409) {
+        const err = await res.json();
+        alert(`재고 부족으로 등록할 수 없습니다.\n\n${err.shortages.map(s => `- ${s.name}: 요청 ${s.requested}개 / 재고 ${s.available}개`).join('\n')}`);
+        return;
+      }
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.message || '처방전 등록에 실패했습니다.');
+        return;
+      }
+
+      alert('🎉 처방전이 등록되었습니다!');
+      window.location.href = '/production';
+    } catch (e) {
+      alert('😵 서버와 통신할 수 없습니다.');
+    }
+  });
+</script>
+{% endblock %}

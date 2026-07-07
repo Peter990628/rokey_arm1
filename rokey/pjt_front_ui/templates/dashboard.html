@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dash-grid">
+  <section>
+    <div class="col-title"><span class="dot progress"></span>🔬 제조중</div>
+    <div id="inProgressList"></div>
+  </section>
+
+  <section>
+    <div class="col-title"><span class="dot done"></span>✅ 제조완료</div>
+    <div id="doneList"></div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .col-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Jua', sans-serif;
+    font-size: 18px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dot.progress { background: var(--mint); box-shadow: 0 0 0 4px var(--mint-bg); animation: pulse 1.4s infinite; }
+  .dot.done { background: var(--muted); box-shadow: 0 0 0 4px var(--surface-2); }
+
+  .ticket {
+    position: relative;
+    background: var(--surface);
+    border: 3px solid var(--line);
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: 3px 3px 0 var(--line);
+    animation: slide-in 0.3s ease-out;
+  }
+  .ticket.done {
+    background: var(--peach-bg);
+    border-color: #FFD3C2;
+    box-shadow: 3px 3px 0 #FFD3C2;
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ticket-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .ticket-patient { font-size: 20px; font-weight: 700; }
+  .ticket-med { font-size: 16px; color: var(--muted); margin-top: 3px; }
+  .ticket-id { font-size: 14px; color: var(--muted); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const inProgress = new Map();   // id -> {patient_name, med_name}
+  const doneItems = [];           // 최신순, 최대 20개
+
+  const inProgressList = document.getElementById('inProgressList');
+  const doneList = document.getElementById('doneList');
+
+  // 서버가 초기 렌더링 시 넣어준 데이터로 채우기
+  const initialTasks = {{ tasks | tojson }};
+  initialTasks.forEach(t => {
+    if (t.status === 'done') {
+      doneItems.push(t);
+    } else {
+      inProgress.set(t.id, t);
+    }
+  });
+
+  function renderInProgress() {
+    if (inProgress.size === 0) {
+      inProgressList.innerHTML = '<div class="empty-hint">😴 대기 중인 조제가 없어요.</div>';
+      return;
+    }
+    inProgressList.innerHTML = [...inProgress.values()].map(t => `
+      <div class="ticket">
+        <div class="ticket-top">
+          <div>
+            <div class="ticket-patient">🧑 ${t.patient_name}</div>
+            <div class="ticket-med">💊 ${t.med_name}</div>
+          </div>
+          <div class="ticket-id mono">#${t.id}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderDone() {
+    if (doneItems.length === 0) {
+      doneList.innerHTML = '<div class="empty-hint">📭 완료된 조제가 없어요.</div>';
+      return;
+    }
+    doneList.innerHTML = doneItems.slice(0, 20).map(t => `
+      <div class="ticket done">
+        <div class="ticket-top">
+          <div>
+            <div class="ticket-patient">🧑 ${t.patient_name}</div>
+            <div class="ticket-med">💊 ${t.med_name}</div>
+          </div>
+          <div class="ticket-id mono">#${t.id}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ROS2에서 오는 payload는 event_id 필드를 쓰므로, 화면 표시용 id로 맞춰줌
+  function normalize(payload) {
+    return { ...payload, id: payload.event_id ?? payload.prescription_id ?? payload.id };
+  }
+
+  socket.on('task_start', (raw) => {
+    const t = normalize(raw);
+    const existing = inProgress.get(t.id) || {};
+    inProgress.set(t.id, { ...existing, ...t });
+    renderInProgress();
+  });
+
+  socket.on('task_done', (raw) => {
+    const t = normalize(raw);
+    inProgress.delete(t.id);
+    doneItems.unshift({ ...inProgress.get(t.id), ...t });
+    renderInProgress();
+    renderDone();
+  });
+
+  renderInProgress();
+  renderDone();
+</script>
+{% endblock %}

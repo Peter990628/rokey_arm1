@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="prescriptionList"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rx-card {
+    background: var(--surface);
+    border: 3px solid var(--line);
+    border-radius: 22px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 4px 4px 0 var(--line);
+  }
+  .rx-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 3px dashed var(--line);
+  }
+  .rx-patient { font-family: 'Jua', sans-serif; font-size: 21px; color: var(--text); }
+  .rx-meta { font-size: 15px; color: var(--muted); }
+  .rx-head-right { display: flex; align-items: center; gap: 12px; }
+
+  .item-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    font-size: 18px;
+  }
+  .item-row + .item-row { border-top: 2px dashed var(--line); }
+  .item-qty { color: var(--muted); font-size: 16px; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // prescriptions: [{id, patient_name, created_at, status, items:[{med_name, qty}]}]
+  // status는 처방전(이벤트) 전체에 하나 -> 검수완료도 카드 하나당 하나
+  const prescriptions = new Map();
+  const initialPrescriptions = {{ prescriptions | tojson }};
+  initialPrescriptions.forEach(p => prescriptions.set(p.id, p));
+
+  const listEl = document.getElementById('prescriptionList');
+
+  function statusBadge(status) {
+    if (status === 'production') return '<span class="badge production"><span class="dot"></span>🔬 제조중</span>';
+    return '<span class="badge done"><span class="dot"></span>✅ 제조완료</span>';
+  }
+
+  function render() {
+    const items = [...prescriptions.values()].sort((a, b) => a.id - b.id);
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="empty-hint">🗒️ 등록된 처방전이 없어요.</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(p => `
+      <div class="rx-card">
+        <div class="rx-card-head">
+          <div>
+            <div class="rx-patient">🧑 ${p.patient_name}</div>
+            <div class="rx-meta mono">#${p.id} · 🕐 ${p.created_at}</div>
+          </div>
+          <div class="rx-head-right">
+            ${statusBadge(p.status)}
+            ${p.status === 'production'
+              ? `<button class="btn amber" onclick="inspectPrescription(${p.id}, this)">🔍 검수완료</button>`
+              : ''}
+          </div>
+        </div>
+        ${p.items.map(it => `
+          <div class="item-row">
+            <span>💊 ${it.med_name}</span>
+            <span class="item-qty">x${it.qty}</span>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  async function inspectPrescription(eventId, btn) {
+    if (!confirm('이 처방전을 검수완료 처리하시겠습니까? 🔍')) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 전송중...';
+    try {
+      const res = await fetch(`/api/tasks/${eventId}/inspect`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.message || '검수 완료 처리에 실패했습니다.');
+        btn.disabled = false;
+        btn.textContent = '🔍 검수완료';
+      }
+      // 성공 시 화면 갱신은 서버가 emit하는 'task_done' 이벤트로 처리됨
+    } catch (e) {
+      alert('서버와 통신할 수 없습니다.');
+      btn.disabled = false;
+      btn.textContent = '🔍 검수완료';
+    }
+  }
+
+  socket.on('prescription_created', (p) => {
+    prescriptions.set(p.id, p);
+    render();
+  });
+
+  // 로봇이 조제 시작 -> '제조중' (검수완료 버튼도 같이 노출)
+  socket.on('task_start', (payload) => {
+    const p = prescriptions.get(payload.event_id ?? payload.prescription_id);
+    if (p) { p.status = 'production'; render(); }
+  });
+
+  // 검수완료 or 로봇측 최종완료 -> '제조완료'
+  function markDone(payload) {
+    const id = payload.event_id ?? payload.prescription_id;
+    const p = prescriptions.get(id);
+    if (p) { p.status = 'done'; render(); }
+  }
+  socket.on('inspection_done', markDone);
+  socket.on('task_done', markDone);
+
+  render();
+</script>
+{% endblock %}
