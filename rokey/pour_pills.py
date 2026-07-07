@@ -86,6 +86,7 @@ class PourPills(Node):
 
     def grasp(self):
         # TODO : 집게 잡기
+        # 집게 사양 알아야됨 
     
     def pour(self):
         # TODO : 집게 잡고 붓기
@@ -96,6 +97,7 @@ class PourPills(Node):
         # TODO : 조제기로 이동
         # 이거 할때도 tcp 설정 해야되나? 고민 필요 
         # 서랍 끝에 force랑 컴필 주면서 최대한 밀착 후 pour
+        # -------------------------------------------------------
         # pour 끝나자 마자 db로 여기서 post 할 지
         # taskmanager로 토픽보내서 taskmanager에서 post할지는 논의 필요
         # 근데 그냥 여기서 함수 마지막에 post 하는게 더 간편해보ㅇㅁ (된다면)
