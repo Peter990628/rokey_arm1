@@ -49,6 +49,7 @@ def main(args=None):
             DR_AXIS_Z,
             DR_SSTOP,
             get_current_posx,
+            get_current_posj,
             release_force,
         )
 
@@ -80,18 +81,24 @@ def main(args=None):
     #go to home
     ungrip()
     movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) #go to home
+    node.get_logger().info("집으로 출발.")
     wait(0.5)
 
     # 봉투 위로 가기
+    node.get_logger().info("봉투 위로 가는 중....")
     movej(posj(-40.6, 42.90, 31.34, -0.07, 105.34, -39.66), vel=VELOCITY, acc=ACC)
+    node.get_logger().info("봉투 위에 도착")
     wait(0.5)
 
     # 봉투로 내려가서 잡기
+    node.get_logger().info("봉투로 내려가는 중...")
     movej(posj(-39.95, 49.59, 66.92, -0.07, 63.44, -39.65), vel=VELOCITY, acc=ACC)
     grip()
+    node.get_logger().info("봉투 잡음!!")
     
     # 봉투를 아래로 살짝 빼기: base 기준 Z -30mm
     wait(0.5)
+    node.get_logger().info("봉투 아래로 살짝 빼는 중...")
     movel(
         posx(0, 0, -100, 0, 0, 0),
         mod=DR_MV_MOD_REL,
@@ -99,9 +106,11 @@ def main(args=None):
         v=100,
         a=50
     )
+    node.get_logger().info("봉투 빼기 완료.")
 
     # 위로 올라가기
     wait(0.5)
+    node.get_logger().info("위로 올라가는 중...")
     movel(
         posx(0, -50, 300, 0, 0, 0),
         mod=DR_MV_MOD_REL,
@@ -109,5 +118,24 @@ def main(args=None):
         v=50,
         a=50
     )
+    node.get_logger().info("위로 올라감.")
 
     
+    # -y 방향으로 좀 빼기
+    wait(0.5)
+    node.get_logger().info("-y 방향으로 좀 빼는중...")
+    movej(posj(-79.23, 48.44, 36.97, -0.07, 94.56, -42.92), vel=VELOCITY, acc=ACC)
+    node.get_logger().info("동작완료")
+
+    # 가상 수납대 위로 가기 
+    wait(0.5)
+    node.get_logger().info("수납대 위로 가는 중...")
+    movej(posj(-51.77, -8.32, 84.92, -0.72, 101.25, -52.54), vel=VELOCITY, acc=ACC)
+
+    # 가상 수납대 위로 올라갔으면 ungrip 하기!
+    current_posj = get_current_posj()
+    if (-52.00 <= current_posj[0] <= -50.00) and (-9.00 <= current_posj[1] <= -8.00) and (84.00 <= current_posj[2] <= 86.00):
+    # 목표 3차원 joint 구역에 도달했을 때 실행할 코드
+        ungrip()
+        node.get_logger().info("목표 지점 도달 완료!")
+
