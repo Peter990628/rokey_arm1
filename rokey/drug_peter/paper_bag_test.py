@@ -5,6 +5,9 @@
 # - 수납대로 이동
 # - 수납대 위로 내려놓기 및 작업 완료 상태 pub
 
+
+
+
 import rclpy
 import DR_init 
 from time import sleep
