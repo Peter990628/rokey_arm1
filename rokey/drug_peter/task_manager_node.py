@@ -74,41 +74,6 @@ class Task_Manager(Node):
         pass
 
 
-    def _json_to_prescription(self, msg: String): # amr2 코드에서 가져온 것 
-        """ """
-        try:
-            data = json.loads(msg.data)
-            goal_id = str(data['event_id'])
-
-            if 'map' in data:
-                point = data['map']
-            else:
-                point = data
-
-            orientation = point.get('orientation', data.get('orientation'))
-
-            mission = {
-                'id': goal_id,
-                'zone': data.get('zone'),
-                'x': float(point['x']),
-                'y': float(point['y']),
-                'yaw': 0.0,
-            }
-            if orientation is not None:
-                mission['orientation'] = {
-                    'x': float(orientation['x']),
-                    'y': float(orientation['y']),
-                    'z': float(orientation['z']),
-                    'w': float(orientation['w']),
-                }
-            return mission
-
-        except Exception as e:
-            self.get_logger().error(f'AMR1 goal json: {e}')
-            return None
-
-
-
 
 
 
