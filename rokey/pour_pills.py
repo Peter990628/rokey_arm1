@@ -89,9 +89,16 @@ class PourPills(Node):
     
     def pour(self):
         # TODO : 집게 잡고 붓기
+        # 이거 할때 tcp 다시 설정 (약통 끝으로 - 약이 떨어져야 하는 곳?)
+        # 이렇게 하면 movec 안써도되나? 고민 필요 
     
-    def move(self):
-        # TODO : 조제기로 이동 / 쓰레기 이동
+    def move_pour(self):
+        # TODO : 조제기로 이동
+        # 이거 할때도 tcp 설정 해야되나? 고민 필요 
+        # 서랍 끝에 force랑 컴필 주면서 최대한 밀착 후 pour
+    
+    def move_trash(self):
+        # TODO : 버리러 이동
     
     def close(self):
         # TODO : 서랍 닫기 
