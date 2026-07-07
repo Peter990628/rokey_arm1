@@ -105,7 +105,7 @@ def main(args=None):
 
 
 
-    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC)
+    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) #go to home
     task_compliance_ctrl([10000,10000,200,10000,10000,10000])
 
 

@@ -26,7 +26,9 @@ setup(
         'console_scripts': [
             'move = rokey.move:main',
             'grip_test = rokey.grip_test:main',
-            'gear = rokey.gear:main'
+            'gear = rokey.gear:main',
+            'paper_bag_test = rokey.drug_peter.paper_bag_test:main',
+            'go_home = rokey.go_home:main',
         ],
     },
 )
