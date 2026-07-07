@@ -33,6 +33,7 @@ from rclpy.qos import HistoryPolicy
 class Task_Manager(Node):
     def __init__(self):
         super().__init__('task_manager')
+       
 #       ----------------------------------sub--------------------------------------------------------------
         # 남은 약 개수
         self.create_subscription(String, 'medicine_num', self._medicine_num_callback, 10) 
@@ -45,14 +46,14 @@ class Task_Manager(Node):
 
 #       ----------------------------------pub--------------------------------------------------------------
         # 처방전
-        self.prescription = self.create_publisher(String, 'prescription', 10)
+        self.prescription = self.create_publisher(String, '/dsr01/prescription', 10)
         # 사용된 약 개수
-        self.used_medicine = self.create_publisher(String, 'used_medicine_num', 10)
+        self.used_medicine = self.create_publisher(String, '/dsr01/used_medicine_num', 10)
         # 조제실 약 개수
-        self.dispensary_a_num = self.create_publisher(Bool, 'dispensary_a_num', 10) # A -> 타이레놀 
-        self.dispensary_b_num = self.create_publisher(Bool, 'dispensary_b_num', 10) # B -> 탁센
-        self.dispensary_c_num = self.create_publisher(Bool, 'dispensary_c_num', 10) # C -> 브루펜
-        self.dispensary_d_num = self.create_publisher(Bool, 'dispensary_d_num', 10) # D -> 활명수
+        self.dispensary_a_num = self.create_publisher(Bool, '/dsr01/dispensary_a_num', 10) # A -> 타이레놀 
+        self.dispensary_b_num = self.create_publisher(Bool, '/dsr01/dispensary_b_num', 10) # B -> 탁센
+        self.dispensary_c_num = self.create_publisher(Bool, '/dsr01/dispensary_c_num', 10) # C -> 브루펜
+        self.dispensary_d_num = self.create_publisher(Bool, '/dsr01/dispensary_d_num', 10) # D -> 활명수
 
 
 
@@ -120,6 +121,7 @@ def main(args=None):
     node = Task_Manager()
     try:
         rclpy.spin(node)
+        node.get_logger().info("task_manager_node 실행")
     except KeyboardInterrupt:
         pass
     finally:
