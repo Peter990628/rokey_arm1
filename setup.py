@@ -28,6 +28,7 @@ setup(
             'grip_test = rokey.grip_test:main',
             'gear = rokey.gear:main',
             'paper_bag_test = rokey.drug_peter.paper_bag_test:main',
+            'task_manager_node = rokey.drug_peter.task_manager_node:main',
             'go_home = rokey.go_home:main',
         ],
     },

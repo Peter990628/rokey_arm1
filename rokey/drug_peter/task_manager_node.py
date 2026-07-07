@@ -1,92 +1,332 @@
 # task_manager_node.py
+#
+# Django pharmacy_backend <-> ROS2 bridge node.
+# - Fetches the next WAITING prescription task from the backend.
+# - Marks it PROCESSING in the backend.
+# - Publishes the task as JSON for robot-control nodes.
+# - Publishes refill-needed signals for compatibility with simple Bool nodes.
 
-# - `task_manager_node` (주문 및 흐름 제어 판단):
-# 처방전 DB에 접근하여 처방 순서를 기록하고, 리필이 필요한 약품을 확인하여 로봇에게 작업 명령을 내리는 **메인 컨트롤러** 역할을 합니다.
-#     - 자세한 설명
-#         - 처방전 DB에서 처방 순서 및 약의 종류, 개수 가져오기
-#         - 약의 위치(적재소),(조제실) 가져오기
-#         - (적재소)약의 개수 판단해서 동작 시행 여부 결정 및 Pub (bool)
-#         - 약의 개수 충족 →처방 순서, 약의 종류, 약의 위치 Pub (String 으로)
-#         - DB로 사용된 약 개수 보냄 (미리 보냄 )
-#         - 남은 약 개수 pub
+# task_manager_node.py
+#
+# 장고 약국_백엔드 <-> ROS2 브리지 노드.
+# - 백엔드에서 다음 대기 처방 작업을 가져옵니다.
+# - 백엔드에 처리 중임을 표시합니다.
+# - 로봇 제어 노드를 위한 작업을 JSON으로 게시합니다.
+# - 간단한 Bool 노드와의 호환성을 위해 리필이 필요한 신호를 게시합니다.
 
-
+import json
+from urllib import error, request
 
 import rclpy
 from rclpy.node import Node
-from time import sleep
-from std_msgs.msg import Bool    
+from std_msgs.msg import Bool
 from std_msgs.msg import String
-from std_msgs.msg import Float32
-import json
-import math 
-import os
-import random
-from pathlib import Path
 
-# QoS(Quality of Service) 설정을 위한 라이브러리
-from rclpy.qos import QoSProfile
-from rclpy.qos import ReliabilityPolicy
-from rclpy.qos import DurabilityPolicy
-from rclpy.qos import HistoryPolicy
+
+DEFAULT_BACKEND_BASE_URL = "http://127.0.0.1:8000/api"
+DEFAULT_ROBOT_NS = "/dsr01"
+
+
+MEDICINE_FLAG_TOPICS = {
+    "타이레놀": "dispensary_a_num",
+    "탁센": "dispensary_b_num",
+    "브루펜": "dispensary_c_num",
+    "활명수": "dispensary_d_num",
+}
+
 
 class Task_Manager(Node):
     def __init__(self):
-        super().__init__('task_manager')
-       
-#       ----------------------------------sub--------------------------------------------------------------
-        # 남은 약 개수
-        self.create_subscription(String, 'medicine_num', self._medicine_num_callback, 10) 
-        # 처방전
-        self.create_subscription(String, 'prescription', self._prescription_callback, 10)
-        # 약 위치 좌표
-        self.create_subscription(String, 'medicine_pos', self._medicine_pos_callback, 10)
+        super().__init__("task_manager")
 
+        self.declare_parameter("backend_base_url", DEFAULT_BACKEND_BASE_URL)
+        self.declare_parameter("robot_ns", DEFAULT_ROBOT_NS)
+        self.declare_parameter("poll_interval_sec", 1.0)
+        self.declare_parameter("request_timeout_sec", 2.0)
+        self.declare_parameter("auto_mark_done", False)
 
+        self.backend_base_url = (
+            self.get_parameter("backend_base_url")
+            .get_parameter_value()
+            .string_value
+            .rstrip("/")
+        )
+        self.robot_ns = self._normalize_ns(
+            self.get_parameter("robot_ns").get_parameter_value().string_value
+        )
+        self.poll_interval_sec = (
+            self.get_parameter("poll_interval_sec").get_parameter_value().double_value
+        )
+        self.request_timeout_sec = (
+            self.get_parameter("request_timeout_sec").get_parameter_value().double_value
+        )
+        self.auto_mark_done = (
+            self.get_parameter("auto_mark_done").get_parameter_value().bool_value
+        )
 
-#       ----------------------------------pub--------------------------------------------------------------
-        # 처방전
-        self.prescription = self.create_publisher(String, '/dsr01/prescription', 10)
-        # 사용된 약 개수
-        self.used_medicine = self.create_publisher(String, '/dsr01/used_medicine_num', 10)
-        # 조제실 약 개수
-        self.dispensary_a_num = self.create_publisher(Bool, '/dsr01/dispensary_a_num', 10) # A -> 타이레놀 
-        self.dispensary_b_num = self.create_publisher(Bool, '/dsr01/dispensary_b_num', 10) # B -> 탁센
-        self.dispensary_c_num = self.create_publisher(Bool, '/dsr01/dispensary_c_num', 10) # C -> 브루펜
-        self.dispensary_d_num = self.create_publisher(Bool, '/dsr01/dispensary_d_num', 10) # D -> 활명수
+        self.current_event_id = None
+        self.current_task = None
+        self._logged_no_task = False
 
+        self.prescription_pub = self.create_publisher(
+            String,
+            self._topic("prescription"),
+            10,
+        )
+        self.refill_request_pub = self.create_publisher(
+            String,
+            self._topic("refill_request"),
+            10,
+        )
+        self.refill_needed_pub = self.create_publisher(
+            Bool,
+            self._topic("refill_needed"),
+            10,
+        )
+        self.task_state_pub = self.create_publisher(
+            String,
+            self._topic("task_state"),
+            10,
+        )
 
+        self.refill_flag_pubs = {
+            medicine_name: self.create_publisher(
+                Bool,
+                self._topic(topic_name),
+                10,
+            )
+            for medicine_name, topic_name in MEDICINE_FLAG_TOPICS.items()
+        }
 
+        self.create_timer(self.poll_interval_sec, self._poll_next_task)
 
+        self.get_logger().info(
+            f"task_manager_node started. backend={self.backend_base_url}, "
+            f"robot_ns={self.robot_ns}"
+        )
 
+    def _normalize_ns(self, namespace: str) -> str:
+        namespace = namespace.strip()
+        if not namespace:
+            return ""
+        if not namespace.startswith("/"):
+            namespace = "/" + namespace
+        return namespace.rstrip("/")
 
-    def _medicine_num_callback(self, msg: String):
-        
-        pass
+    def _topic(self, name: str) -> str:
+        if self.robot_ns:
+            return f"{self.robot_ns}/{name}"
+        return name
 
-    def _prescription_callback(self, msg: String):
-        prescription = self._json_to_prescription(msg)
-        if prescription is None:
+    def _poll_next_task(self):
+        if self.current_event_id is not None:
             return
-        pass
 
-    def _medicine_pos_callback(self, msg: String):
-        pass
+        status_code, task = self._request_json("GET", "/tasks/next/")
 
+        if status_code == 404:
+            if not self._logged_no_task:
+                self.get_logger().info("대기 중인 처방 작업이 없습니다.")
+                self._logged_no_task = True
+            return
 
+        if status_code != 200:
+            self.get_logger().warn(f"다음 작업 조회 실패: {status_code} {task}")
+            return
 
+        self._logged_no_task = False
 
+        if not self._is_valid_task(task):
+            self.get_logger().error(f"백엔드 작업 데이터 형식이 올바르지 않습니다: {task}")
+            return
 
+        event_id = task["event_id"]
 
+        if not self._set_task_status(event_id, "PROCESSING"):
+            return
 
+        self.current_event_id = event_id
+        self.current_task = task
+
+        self._publish_task(task)
+        self._publish_task_state(event_id, "PROCESSING", "작업 publish 완료")
+
+        if self.auto_mark_done:
+            self.finish_current_task()
+
+    def _is_valid_task(self, task) -> bool:
+        if not isinstance(task, dict):
+            return False
+        if "event_id" not in task or "items" not in task:
+            return False
+        if not isinstance(task["items"], list):
+            return False
+        return True
+
+    def _publish_task(self, task: dict):
+        msg = String()
+        msg.data = json.dumps(task, ensure_ascii=False)
+        self.prescription_pub.publish(msg)
+
+        self.get_logger().info(
+            f"처방 작업 publish: event_id={task['event_id']}, "
+            f"items={len(task['items'])}"
+        )
+
+        self._publish_refill_flags(task["items"])
+        self._publish_refill_requests(task)
+        self._publish_refill_needed(task["items"])
+
+    def _publish_refill_flags(self, items: list):
+        for pub in self.refill_flag_pubs.values():
+            self._publish_bool(pub, False)
+
+        for item in items:
+            medicine_name = item.get("medicine_name")
+            refill_needed = bool(item.get("refill_needed", False))
+
+            if not refill_needed:
+                continue
+
+            pub = self.refill_flag_pubs.get(medicine_name)
+            if pub is None:
+                self.get_logger().warn(
+                    f"Bool 리필 토픽 매핑이 없는 약입니다: {medicine_name}"
+                )
+                continue
+
+            self._publish_bool(pub, True)
+
+    def _publish_refill_requests(self, task: dict):
+        refill_items = [
+            item
+            for item in task["items"]
+            if bool(item.get("refill_needed", False))
+        ]
+
+        for item in refill_items:
+            msg = String()
+            msg.data = json.dumps(
+                {
+                    "event_id": task["event_id"],
+                    "prescription_name": task.get("prescription_name"),
+                    **item,
+                },
+                ensure_ascii=False,
+            )
+            self.refill_request_pub.publish(msg)
+
+        if refill_items:
+            self.get_logger().info(f"리필 요청 publish: {len(refill_items)}개")
+
+    def _publish_refill_needed(self, items: list):
+        refill_needed = any(
+            bool(item.get("refill_needed", False))
+            for item in items
+        )
+
+        self._publish_bool(self.refill_needed_pub, refill_needed)
+
+        if refill_needed:
+            self.get_logger().info("약품 리필 필요 여부 publish: True")
+        else:
+            self.get_logger().info("약품 리필 필요 여부 publish: False, 처방 시작 가능")
+
+    def _publish_bool(self, publisher, value: bool):
+        msg = Bool()
+        msg.data = value
+        publisher.publish(msg)
+
+    def finish_current_task(self) -> bool:
+        if self.current_event_id is None:
+            self.get_logger().warn("완료 처리할 현재 작업이 없습니다.")
+            return False
+
+        event_id = self.current_event_id
+
+        if not self._set_task_status(event_id, "DONE"):
+            return False
+
+        self._publish_task_state(event_id, "DONE", "작업 완료")
+        self.current_event_id = None
+        self.current_task = None
+        return True
+
+    def _set_task_status(self, event_id, status_value: str) -> bool:
+        status_code, data = self._request_json(
+            "POST",
+            "/tasks/status/",
+            {
+                "event_id": event_id,
+                "status": status_value,
+            },
+        )
+
+        if status_code != 200:
+            self.get_logger().error(
+                f"작업 상태 변경 실패: event_id={event_id}, "
+                f"status={status_value}, response={status_code} {data}"
+            )
+            return False
+
+        self.get_logger().info(
+            f"작업 상태 변경 완료: event_id={event_id}, status={status_value}"
+        )
+        return True
+
+    def _publish_task_state(self, event_id, status_value: str, message: str):
+        msg = String()
+        msg.data = json.dumps(
+            {
+                "event_id": event_id,
+                "status": status_value,
+                "message": message,
+            },
+            ensure_ascii=False,
+        )
+        self.task_state_pub.publish(msg)
+
+    def _request_json(self, method: str, path: str, payload=None):
+        url = f"{self.backend_base_url}{path}"
+        body = None
+        headers = {"Accept": "application/json"}
+
+        if payload is not None:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            headers["Content-Type"] = "application/json; charset=utf-8"
+
+        req = request.Request(url, data=body, headers=headers, method=method)
+
+        try:
+            with request.urlopen(req, timeout=self.request_timeout_sec) as response:
+                raw = response.read().decode("utf-8")
+                return response.status, self._decode_json(raw)
+        except error.HTTPError as e:
+            raw = e.read().decode("utf-8")
+            return e.code, self._decode_json(raw)
+        except error.URLError as e:
+            self.get_logger().error(f"백엔드 연결 실패: {url} ({e})")
+            return 0, {"error": str(e)}
+        except TimeoutError as e:
+            self.get_logger().error(f"백엔드 요청 timeout: {url} ({e})")
+            return 0, {"error": str(e)}
+
+    def _decode_json(self, raw: str):
+        if not raw:
+            return {}
+
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {"raw": raw}
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = Task_Manager()
+
     try:
         rclpy.spin(node)
-        node.get_logger().info("task_manager_node 실행")
     except KeyboardInterrupt:
         pass
     finally:
@@ -95,15 +335,5 @@ def main(args=None):
             rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
