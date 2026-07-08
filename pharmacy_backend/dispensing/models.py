@@ -4,7 +4,7 @@ from django.db import models
 class Medicine(models.Model):
     medicine_name = models.CharField(max_length=100)
 
-    # 적재소 위치
+    # 적재소 위치다!!
     storage_location = models.CharField(max_length=50)
 
     # 조제기 위치
@@ -16,7 +16,7 @@ class Medicine(models.Model):
     # 적재소 재고
     storage_stock = models.IntegerField(default=0)
 
-    # 조제기 내부 재고
+    # 조제기 내부      재고
     dispensing_stock = models.IntegerField(default=0)
 
     def __str__(self):
