@@ -1,9 +1,11 @@
-# paper_bag_test.py
+# paper_bag_test.py 
 # - 종이 봉투 위치로 가기
 # - 종이 봉투 gripping
 # - 종이 봉투 살짝 아래로 내리면서 빼기
 # - 수납대로 이동
 # - 수납대 위로 내려놓기 및 작업 완료 상태 pub
+
+# ver2
 
 import rclpy
 import DR_init 
@@ -84,19 +86,21 @@ def main(args=None):
 # ---------------------------------------------작업 시작-----------------------------------------------------------------------
     #go to home
     ungrip()
-    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) # go to home
     node.get_logger().info("집으로 출발.")
+    movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) # go to home
     wait(0.5)
 
     # 봉투 위로 가기
     node.get_logger().info("봉투 위로 가는 중....")
-    movej(posj(-40.6, 42.90, 31.34, -0.07, 105.34, -39.66), vel=VELOCITY, acc=ACC)
+    # movej(posj(-40.6, 42.90, 31.34, -0.07, 105.34, -39.66), vel=VELOCITY, acc=ACC) # ver1 위치 
+    movej(posj(-36.32, 53.19, 28.79, -0.59, 98.47, -130.76), vel=VELOCITY, acc=ACC) # ver2 위치
     node.get_logger().info("봉투 위에 도착")
     wait(0.5)
 
     # 봉투로 내려가서 잡기
     node.get_logger().info("봉투로 내려가는 중...")
-    movej(posj(-39.95, 49.59, 66.92, -0.07, 63.44, -39.65), vel=VELOCITY, acc=ACC)
+    # movej(posj(-39.95, 49.59, 66.92, -0.07, 63.44, -39.65), vel=VELOCITY, acc=ACC) # ver1 위치 
+    movej(posj(-37.34, 57.57, 46.94, -0.61, 75.93, -131.56), vel=VELOCITY, acc=ACC) # ver2 위치
     grip()
     node.get_logger().info("봉투 잡음!!")
     
