@@ -4,11 +4,15 @@ from django.db import models
 class Medicine(models.Model):
     medicine_name = models.CharField(max_length=100)
 
-    # 적재소 위치다!!
-    storage_location = models.CharField(max_length=50)
+    # 적재소 위치
+    storage_x = models.FloatField(default=0.0)
+    storage_y = models.FloatField(default=0.0)
+    storage_z = models.FloatField(default=0.0)
 
     # 조제기 위치
-    dispensing_location = models.CharField(max_length=50)
+    dispensing_x = models.FloatField(default=0.0)
+    dispensing_y = models.FloatField(default=0.0)
+    dispensing_z = models.FloatField(default=0.0)
 
     # 뚜껑 타입: hole, rotate 등
     lid_type = models.CharField(max_length=20)

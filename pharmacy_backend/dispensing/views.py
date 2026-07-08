@@ -181,8 +181,16 @@ class NextTaskAPIView(APIView):
                 "quantity": item.quantity,
                 "order": item.order,
                 "item_status": item.status,
-                "storage_location": medicine.storage_location,
-                "dispensing_location": medicine.dispensing_location,
+                "storage_position": {
+                    "x": medicine.storage_x,
+                    "y": medicine.storage_y,
+                    "z": medicine.storage_z,
+                },
+                "dispensing_position": {
+                    "x": medicine.dispensing_x,
+                    "y": medicine.dispensing_y,
+                    "z": medicine.dispensing_z,
+                },
                 "lid_type": medicine.lid_type,
                 "storage_stock": medicine.storage_stock,
                 "dispensing_stock": medicine.dispensing_stock
