@@ -13,7 +13,38 @@
 
 # 필요한 개수>조제기 : 그냥 스크래퍼 로 이동 명령
 
+#-----------------------/dsr01/pharmacy/events---------------------------------
+# [
+#   {
+#     "id": 1,
+#     "prescription_name": "홍길동",
+#     "status": "WAITING",
+#     "created_at": "2026-07-09T...",
+#     "items": [
+#       {
+#         "id": 1,
+#         "medicine_name": "타이레놀",
+#         "quantity": 2,
+#         "order": 1,
+#         "status": "READY"
+#       }
+#     ]
+#   }
+# ]
 
+#-----------------------/dsr01/pharmacy/medicine---------------------------------
+
+# [
+#   {
+#     "id": 1,
+#     "medicine_name": "타이레놀",
+#     "storage_location": "A1",
+#     "dispensing_location": "D1",
+#     "lid_type": "hole",
+#     "storage_stock": 20,
+#     "dispensing_stock": 5
+#   }
+# ]
 
 import json
 from urllib import error, request
@@ -30,8 +61,8 @@ DEFAULT_BACKEND_BASE_URL = "http://172.23.0.128:8000/api"
 # 브릿지가 publish할 기본 ROS 토픽 이름..
 # /api/events/ 응답 전체는 DEFAULT_EVENTS_TOPIC으로 나가고,
 # /api/medicine/ 응답 전체는 DEFAULT_MEDICINE_TOPIC으로 나간다.
-DEFAULT_EVENTS_TOPIC = "dsr01/pharmacy/events"
-DEFAULT_MEDICINE_TOPIC = "dsr01/pharmacy/medicine"
+DEFAULT_EVENTS_TOPIC = "/dsr01/pharmacy/events"
+DEFAULT_MEDICINE_TOPIC = "/dsr01/pharmacy/medicine"
 
 
 class TaskManagerBridge(Node):
