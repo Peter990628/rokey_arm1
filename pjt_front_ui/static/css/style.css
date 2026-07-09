@@ -1,0 +1,247 @@
+/* ============================================================
+   약국 업무 보조 로봇 - 공통 스타일 (귀여운 컬러풀 테마)
+   폰트: Jua(제목) + Sunflower(본문) / 컬러: 민트+피치+선샤인 파스텔
+   시그니처: 종이 스티커 느낌의 오프셋 그림자(sticker shadow)
+   ============================================================ */
+
+:root {
+  --bg:          #FFF7FB;
+  --surface:     #FFFFFF;
+  --surface-2:   #FFF0F6;
+  --line:        #FFD6E8;
+  --text:        #4A3B47;
+  --muted:       #B98CA6;
+
+  --mint:        #2FC98E;   /* 제조중 / 메인 액션 */
+  --mint-bg:     #DFFBEF;
+  --peach:       #FF9472;   /* 완료 / 서브 액션 */
+  --peach-bg:    #FFE9E1;
+  --sunny:       #FFC93C;   /* 포인트 컬러 */
+  --sunny-bg:    #FFF6DA;
+  --danger:      #FF6B81;   /* 재고부족 경보 */
+  --danger-bg:   #FFE3E8;
+  --lavender:    #A78BE0;   /* 장식용 포인트 */
+  --lavender-bg: #EFE7FB;
+
+  --sidebar-w: 232px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sunflower', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+}
+
+.display-font { font-family: 'Jua', sans-serif; }
+.mono { font-family: 'Sunflower', sans-serif; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ---------------- 전체 레이아웃 ---------------- */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---------------- 사이드바 ---------------- */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 3px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+}
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 15px;
+  margin-bottom: 10px;
+  border-bottom: 3px dashed var(--line);
+}
+.brand-emoji {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 var(--mint-bg));
+}
+.sidebar .brand-title {
+  font-family: 'Jua', sans-serif;
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--mint);
+}
+.sidebar .brand-sub {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  font-family: 'Jua', sans-serif;
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform 0.12s, background 0.12s;
+}
+.nav-emoji { font-size: 20px; flex-shrink: 0; }
+.nav-link:hover { background: var(--surface-2); color: var(--text); transform: translateX(2px); }
+.nav-link.active {
+  background: var(--mint-bg);
+  color: var(--mint);
+  /* font-weight: 700; */
+}
+.nav-footer {
+  margin-top: auto;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 0 8px;
+}
+
+/* ---------------- 메인 영역 ---------------- */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 40px;
+  border-bottom: 3px dashed var(--line);
+  background: var(--surface);
+}
+.topbar h1 {
+  font-size: 30px;
+  font-weight: 400;
+  margin: 0;
+  color: var(--text);
+}
+.topbar .clock {
+  font-size: 17px;
+  color: var(--mint);
+  background: var(--mint-bg);
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-weight: 700;
+}
+
+.page-content {
+  padding: 32px 40px;
+  flex: 1;
+}
+
+/* ---------------- 공용: 뱃지 ---------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 100px;
+  letter-spacing: 0.02em;
+}
+.badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+.badge.production { color: #1E9169; background: var(--mint-bg); }
+.badge.production .dot { background: var(--mint); animation: pulse 1.4s infinite; }
+.badge.done { color: #B5654C; background: var(--peach-bg); }
+.badge.done .dot { background: var(--peach); }
+.badge.low-stock { color: #D6455C; background: var(--danger-bg); }
+.badge.low-stock .dot { background: var(--danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------------- 공용: 카드 (종이 스티커 느낌) ---------------- */
+.card {
+  background: var(--surface);
+  border: 3px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+/* ---------------- 공용: 버튼 (알약 모양) ---------------- */
+.btn {
+  border: none;
+  border-radius: 100px;
+  padding: 11px 20px;
+  font-size: 17px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
+}
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 rgba(0,0,0,0.14); filter: brightness(1.03); }
+.btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(0,0,0,0.12); }
+.btn.primary { background: var(--mint); color: #fff; }
+.btn.amber { background: var(--peach); color: #fff; }
+.btn.ghost { background: var(--surface-2); color: var(--text); box-shadow: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ---------------- 공용: 폼 ---------------- */
+.field { margin-bottom: 18px; }
+.field label {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.field input, .field select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  font-size: 17px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: var(--mint);
+}
+
+/* ---------------- 재고 부족 배너 ---------------- */
+.alert-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  text-align: center;
+  padding: 14px;
+  transform: translateY(-100%);
+  transition: transform 0.25s ease-out;
+  z-index: 50;
+}
+.alert-banner.show { transform: translateY(0); }
+
+.empty-hint {
+  color: var(--muted);
+  font-size: 17px;
+  padding: 12px 2px;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 100px; }
