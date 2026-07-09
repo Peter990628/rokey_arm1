@@ -191,6 +191,14 @@ class NextTaskAPIView(APIView):
                     "y": medicine.dispensing_y,
                     "z": medicine.dispensing_z,
                 },
+                "drawer_pose": {
+                    "x": medicine.drawer_x,
+                    "y": medicine.drawer_y,
+                    "z": medicine.drawer_z,
+                    "rx": medicine.drawer_rx,
+                    "ry": medicine.drawer_ry,
+                    "rz": medicine.drawer_rz,
+                },
                 "lid_type": medicine.lid_type,
                 "storage_stock": medicine.storage_stock,
                 "dispensing_stock": medicine.dispensing_stock

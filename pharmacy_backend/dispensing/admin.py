@@ -16,6 +16,13 @@ class MedicineAdmin(admin.ModelAdmin):
         "dispensing_y",
         "dispensing_z",
 
+        "drawer_x",
+        "drawer_y",
+        "drawer_z",
+        "drawer_rx",
+        "drawer_ry",
+        "drawer_rz",
+
         "lid_type",
         "storage_stock",
         "dispensing_stock",
