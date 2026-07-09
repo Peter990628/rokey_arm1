@@ -5,7 +5,7 @@
 # - 수납대로 이동
 # - 수납대 위로 내려놓기 및 작업 완료 상태 pub
 
-# ver2
+#-------------------------------------------ver2---------------------------------------------------------------------------
 
 import rclpy
 import DR_init 
@@ -67,8 +67,9 @@ def main(args=None):
 	
     set_tool("Tool Weight_1") # 패드에 있는 이름으로 해야 함 
     set_tcp('Tool_v1') # 패드에 있는 이름으로 해야 함
+# ---------------------------------------------grip 함수-----------------------------------------------------------------------
 
-    def ungrip():
+    def ungrip(): # 너비 80MM, 40N
         node.get_logger().info("set for digital output 1 0 for ungrip")
         set_digital_output(1, OFF)
         set_digital_output(2, OFF)
@@ -76,7 +77,7 @@ def main(args=None):
         set_digital_output(2, OFF)
         sleep(1)
 
-    def grip():
+    def grip(): # 너비 2MM, 20N 
         node.get_logger().info("set for digital output 0 1 for grip")
         set_digital_output(1, OFF)
         set_digital_output(2, OFF)
@@ -85,6 +86,7 @@ def main(args=None):
         sleep(1)    
 # ---------------------------------------------작업 시작-----------------------------------------------------------------------
     #go to home
+    node.get_logger().info("paper_bag_test 실행.")
     ungrip()
     node.get_logger().info("집으로 출발.")
     movej(posj(0, 0, 90, 0, 90, 0), vel=VELOCITY, acc=ACC) # go to home

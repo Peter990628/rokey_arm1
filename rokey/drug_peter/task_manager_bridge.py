@@ -27,7 +27,7 @@ from std_msgs.msg import String
 # 다른 PC에서 백엔드가 실행 중이면 실행 시 파라미터로 바꿀 수 있다.
 DEFAULT_BACKEND_BASE_URL = "http://172.23.0.128:8000/api"
 
-# 브릿지가 publish할 기본 ROS 토픽 이름.
+# 브릿지가 publish할 기본 ROS 토픽 이름..
 # /api/events/ 응답 전체는 DEFAULT_EVENTS_TOPIC으로 나가고,
 # /api/medicine/ 응답 전체는 DEFAULT_MEDICINE_TOPIC으로 나간다.
 DEFAULT_EVENTS_TOPIC = "dsr01/pharmacy/events"
@@ -38,7 +38,7 @@ class TaskManagerBridge(Node):
     def __init__(self):
         # ROS2 노드 이름.
         super().__init__("task_manager_bridge")
-
+        self.get_logger().info("task_manager_bridge 노드 실행...")
         # ROS2 파라미터 선언.
         # 예:
         # ros2 run rokey task_manager_bridge --ros-args \
@@ -183,7 +183,7 @@ def main(args=None):
 
     # 브릿지 노드 생성.
     node = TaskManagerBridge()
-
+    
     try:
         # timer callback이 계속 실행되도록 spin한다.
         rclpy.spin(node)
