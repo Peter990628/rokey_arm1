@@ -1,4 +1,4 @@
-# 💊 약국 업무 보조 로봇 (Pharmacy Assistant Robot)
+# 💊 약국 업무 보조 로봇 (Pharmacy Assistant Robot) -수정중-
 > **조 이름: C-2** > **팀원: 김혜승_서영채_박현정_조해벽**
 
 ## 1. 🎨 시스템 설계 및 플로우 차트
