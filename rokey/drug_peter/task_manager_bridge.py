@@ -1,17 +1,15 @@
 # task_manager_bridge.py
 
-# get 요청을 3군데 로 보낸거 (브릿지가 get을 db에 요청 > 정보를 받는다)
-# 1. event(처방전 발생)가 발생했을 때 정보
-# 2. medicine 테이블에 있는 정보
-# 3. 리필 여부 상태 정보
-# > task manager에 pub
-# ---
-# task manager 판단
-# ~~1. 약품이 필요한가?~~ 
-# 1) 약이름, 약 좌표(적재소, 조제기), order 번호 <--- 리필 필
-# 2) 약이름, 약 좌표 (조제기), order 번호 <----- 리필 불필
-
-# 필요한 개수>조제기 : 그냥 스크래퍼 로 이동 명령
+# 작동 순서
+# 1초마다 /api/events/를 GET합니다.
+# 1초마다 /api/medicine/을 GET합니다.
+# 기존 /events, /medicine 토픽에는 응답 원본을 그대로 발행합니다.
+# 모든 이벤트의 items를 확인합니다.
+# item["status"] == "READY"인 약은 제외합니다.
+# READY가 아닌 약의 medicine_name을 가져옵니다.
+# /api/medicine/ 결과에서 같은 medicine_name의 약을 찾습니다.
+# 약 이름과 위치 좌표만 별도의 JSON 객체로 만듭니다.
+# 부족한 약들을 하나의 JSON 배열로 묶어 새 토픽으로 발행합니다.
 
 #-----------------------/dsr01/pharmacy/events---------------------------------
 # [
@@ -36,13 +34,43 @@
 
 # [
 #   {
-#     "id": 1,
+#     "medicine_number": 1,
 #     "medicine_name": "타이레놀",
-#     "storage_location": "A1",
-#     "dispensing_location": "D1",
+#     "storage_x": 100.0,
+#     "storage_y": 200.0,
+#     "storage_z": 300.0,
+#     "storage_rx": 0.0,
+#     "storage_ry": 180.0,
+#     "storage_rz": 0.0,
+#     "dispensing_x": 400.0,
+#     "dispensing_y": 200.0,
+#     "dispensing_z": 150.0,
+#     "dispensing_rx": 0.0,
+#     "dispensing_ry": 180.0,
+#     "dispensing_rz": 0.0,
+#     "drawer_x": 350.0,
+#     "drawer_y": 210.0,
+#     "drawer_z": 170.0,
+#     "drawer_rx": 0.0,
+#     "drawer_ry": 180.0,
+#     "drawer_rz": 0.0,
 #     "lid_type": "hole",
 #     "storage_stock": 20,
 #     "dispensing_stock": 5
+#   }
+# ]
+
+#----------------/dsr01/pharmacy/refill_required_medicine---------------------
+# READY가 아닌 약이 여러 개이면 한 JSON 배열 안에 약별 객체로 구분해서 보낸다.
+# [
+#   {
+#     "medicine_name": "타이레놀",
+#     "storage_pose": {"x": 100.0, "y": 200.0, "z": 300.0,
+#                      "rx": 0.0, "ry": 180.0, "rz": 0.0},
+#     "dispensing_pose": {"x": 400.0, "y": 200.0, "z": 150.0,
+#                         "rx": 0.0, "ry": 180.0, "rz": 0.0},
+#     "drawer_pose": {"x": 350.0, "y": 210.0, "z": 170.0,
+#                     "rx": 0.0, "ry": 180.0, "rz": 0.0}
 #   }
 # ]
 
@@ -63,6 +91,12 @@ DEFAULT_BACKEND_BASE_URL = "http://172.23.0.128:8000/api"
 # /api/medicine/ 응답 전체는 DEFAULT_MEDICINE_TOPIC으로 나간다.
 DEFAULT_EVENTS_TOPIC = "/dsr01/pharmacy/events"
 DEFAULT_MEDICINE_TOPIC = "/dsr01/pharmacy/medicine"
+DEFAULT_REFILL_REQUIRED_MEDICINE_TOPIC = (
+    "/dsr01/pharmacy/refill_required_medicine"
+)
+
+# Medicine 좌표 필드의 공통 축 이름.
+POSE_AXES = ("x", "y", "z", "rx", "ry", "rz")
 
 
 class TaskManagerBridge(Node):
@@ -79,6 +113,10 @@ class TaskManagerBridge(Node):
         self.declare_parameter("request_timeout_sec", 2.0)
         self.declare_parameter("events_topic", DEFAULT_EVENTS_TOPIC)
         self.declare_parameter("medicine_topic", DEFAULT_MEDICINE_TOPIC)
+        self.declare_parameter(
+            "refill_required_medicine_topic",
+            DEFAULT_REFILL_REQUIRED_MEDICINE_TOPIC,
+        )
 
         # URL 뒤에 /가 붙어 들어와도 /events/와 합칠 때 //가 생기지 않게 제거한다.
         self.backend_base_url = (
@@ -105,11 +143,21 @@ class TaskManagerBridge(Node):
         self.medicine_topic = (
             self.get_parameter("medicine_topic").get_parameter_value().string_value
         )
+        self.refill_required_medicine_topic = (
+            self.get_parameter("refill_required_medicine_topic")
+            .get_parameter_value()
+            .string_value
+        )
 
         # 백엔드에서 받은 JSON을 std_msgs/String의 data에 담아 publish한다.
         # 받는 노드는 json.loads(msg.data)로 다시 Python dict/list로 바꿔 쓰면 된다.
         self.events_pub = self.create_publisher(String, self.events_topic, 10)
         self.medicine_pub = self.create_publisher(String, self.medicine_topic, 10)
+        self.refill_required_medicine_pub = self.create_publisher(
+            String,
+            self.refill_required_medicine_topic,
+            10,
+        )
 
         # 같은 로그가 매초 반복되면 보기 힘드니 첫 성공/첫 에러만 찍기 위한 기록.
         self._logged_success = set()
@@ -120,14 +168,30 @@ class TaskManagerBridge(Node):
 
         self.get_logger().info(
             f"task_manager_bridge started. backend={self.backend_base_url}, "
-            f"events_topic={self.events_topic}, medicine_topic={self.medicine_topic}"
+            f"events_topic={self.events_topic}, medicine_topic={self.medicine_topic}, "
+            f"refill_required_medicine_topic="
+            f"{self.refill_required_medicine_topic}"
         )
 
     def _poll_backend(self):
         # db_______.txt 기준으로 이 브릿지는 GET 두 개만 수행한다.
         # DB를 수정하는 POST/PUT/PATCH/DELETE 요청은 하지 않는다.
-        self._get_and_publish("events", "/events/", self.events_pub)
-        self._get_and_publish("medicine", "/medicine/", self.medicine_pub)
+        events_data = self._get_and_publish(
+            "events",
+            "/events/",
+            self.events_pub,
+        )
+        medicine_data = self._get_and_publish(
+            "medicine",
+            "/medicine/",
+            self.medicine_pub,
+        )
+
+        # 두 GET 모두 성공했을 때만 이름을 기준으로 데이터를 연결한다.
+        if events_data is None or medicine_data is None:
+            return
+
+        self._publish_refill_required_medicines(events_data, medicine_data)
 
     def _get_and_publish(self, label: str, path: str, publisher):
         # path에 해당하는 백엔드 API를 GET으로 읽어온다.
@@ -139,7 +203,7 @@ class TaskManagerBridge(Node):
             if error_key not in self._logged_errors:
                 self.get_logger().warn(f"{label} GET 실패: {status_code} {data}")
                 self._logged_errors.add(error_key)
-            return
+            return None
 
         # Python dict/list 데이터를 ROS String 메시지에 넣을 수 있게 JSON 문자열로 변환한다.
         # ensure_ascii=False를 쓰면 한글 약 이름이 그대로 보인다.
@@ -153,6 +217,97 @@ class TaskManagerBridge(Node):
                 f"{label} GET 성공 및 publish 완료: {self._count_items(data)}개"
             )
             self._logged_success.add(label)
+
+        # 리필 필요 약을 만들 때 같은 GET 응답을 재사용한다.
+        return data
+
+    def _publish_refill_required_medicines(self, events_data, medicine_data):
+        # DRF 응답이 list이거나 pagination의 {"results": [...]}여도 처리한다.
+        events = self._extract_records(events_data)
+        medicines = self._extract_records(medicine_data)
+
+        # EventItem과 Medicine을 medicine_name으로 빠르게 연결하기 위한 표이다.
+        medicine_by_name = {
+            medicine.get("medicine_name"): medicine
+            for medicine in medicines
+            if isinstance(medicine, dict) and medicine.get("medicine_name")
+        }
+
+        refill_required_medicines = []
+        added_names = set()
+
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+
+            items = event.get("items", [])
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                if not isinstance(item, dict) or item.get("status") == "READY":
+                    continue
+
+                medicine_name = item.get("medicine_name")
+
+                # 같은 약이 여러 Event에서 부족해도 좌표 정보는 한 번만 넣는다.
+                if not medicine_name or medicine_name in added_names:
+                    continue
+
+                medicine = medicine_by_name.get(medicine_name)
+                if medicine is None:
+                    error_key = ("medicine_not_found", medicine_name)
+                    if error_key not in self._logged_errors:
+                        self.get_logger().warn(
+                            f"리필 필요 약을 medicine 목록에서 찾지 못함: "
+                            f"{medicine_name}"
+                        )
+                        self._logged_errors.add(error_key)
+                    continue
+
+                # 약마다 독립된 객체를 만들고 위치 종류도 pose 객체로 구분한다.
+                refill_required_medicines.append(
+                    {
+                        "medicine_name": medicine_name,
+                        "storage_pose": self._make_pose(medicine, "storage"),
+                        "dispensing_pose": self._make_pose(
+                            medicine,
+                            "dispensing",
+                        ),
+                        "drawer_pose": self._make_pose(medicine, "drawer"),
+                    }
+                )
+                added_names.add(medicine_name)
+
+        # READY가 아닌 약이 있을 때만 리필 필요 토픽을 발행한다.
+        if not refill_required_medicines:
+            return
+
+        msg = String()
+        msg.data = json.dumps(refill_required_medicines, ensure_ascii=False)
+        self.refill_required_medicine_pub.publish(msg)
+
+        label = "refill_required_medicine"
+        if label not in self._logged_success:
+            self.get_logger().info(
+                f"리필 필요 약 publish 완료: "
+                f"{len(refill_required_medicines)}개"
+            )
+            self._logged_success.add(label)
+
+    def _extract_records(self, data):
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and isinstance(data.get("results"), list):
+            return data["results"]
+        return []
+
+    def _make_pose(self, medicine: dict, prefix: str):
+        # 예: prefix가 storage이면 storage_x부터 storage_rz까지 묶는다.
+        return {
+            axis: medicine.get(f"{prefix}_{axis}")
+            for axis in POSE_AXES
+        }
 
     def _get_json(self, path: str):
         # 예: http://172.23.0.128:8000/api + /events/
