@@ -1,6 +1,7 @@
 # manipulator_test_2.py
 # paper_bag_test + manipulation_node_scraper
-#
+# 담당자 : 박현정, 조해벽
+
 # 역할:
 # 1. 스크래퍼를 집어서 조제기 배출구로 이동
 # 2. 스크래퍼에 담긴 약을 종이봉투에 붓고 스크래퍼 반납
@@ -37,7 +38,8 @@ HOME = [0, 0, 90, 0, 90, 0]
 
 # ---- 종이봉투 위치 ----
 PAPER_BAG_ABOVE = [-17.36,13.85,88.76,-20.56,71.08,77.09]
-PAPER_BAG_GRIP = [-36.39, 50.57, 62.77, -3.46, 63.79, 52.22]
+PAPER_BAG_GRIP_MIDDLE = [-39.26, 40.82, 55.66, -2.99, 80.47, 48.32]
+PAPER_BAG_GRIP = [-36.27, 47.72, 68.28, -3.37, 60.99, 49.45]
 PAPER_BAG_Y_AWAY = [-79.23, 48.44, 36.97, -0.07, 94.56, -42.92]
 PAPER_BAG_SHELF = [-51.77, -8.32, 84.92, -0.72, 101.25, -52.54]
 
@@ -50,7 +52,7 @@ POUCH_POS = [-11.49, 20.27, 77.08, 159.48, -76.69, -97.15]
 SCRAPER_RETURN_MIDDLE = [14.69, -0.88, 91.28, 179.97, -89.60, -73.89]
 SCRAPER_RETURN_MIDDLE_MIDDLE = [14.83, 4.70, 57.95, 179.95, -117.35, -73.88]
 SCRAPER_RETURN_STAND = [16.36, 12.25, 99.06, 169.71, -36.23, -159.68] # 여기서 놓는거로 함 나중에 수정할 수도 
-# SCRAPER_RETURN_FINAL = [17.64, 17.72, 90.74, -13.68, 44.22, -149.59]
+
 
 
 class ManipulatorTest2:
@@ -94,6 +96,8 @@ class ManipulatorTest2:
         
         self.node.get_logger().info("[PAPER 2/7] 봉투 위로 이동")
         movej(posj(*PAPER_BAG_ABOVE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
+        wait(0.5)
+        movej(posj(*PAPER_BAG_GRIP_MIDDLE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
 
         self.node.get_logger().info("[PAPER 3/7] 봉투 위치로 내려가서 잡기")
