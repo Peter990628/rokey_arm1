@@ -11,10 +11,16 @@ class MedicineAdmin(admin.ModelAdmin):
         "storage_x",
         "storage_y",
         "storage_z",
+        "storage_rx",
+        "storage_ry",
+        "storage_rz",
 
         "dispensing_x",
         "dispensing_y",
         "dispensing_z",
+        "dispensing_rx",
+        "dispensing_ry",
+        "dispensing_rz",
 
         "drawer_x",
         "drawer_y",

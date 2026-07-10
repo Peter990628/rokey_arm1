@@ -8,11 +8,17 @@ class Medicine(models.Model):
     storage_x = models.FloatField(default=0.0)
     storage_y = models.FloatField(default=0.0)
     storage_z = models.FloatField(default=0.0)
+    storage_rx = models.FloatField(default=0.0)
+    storage_ry = models.FloatField(default=0.0)
+    storage_rz = models.FloatField(default=0.0)
 
     # 조제기 위치
     dispensing_x = models.FloatField(default=0.0)
     dispensing_y = models.FloatField(default=0.0)
     dispensing_z = models.FloatField(default=0.0)
+    dispensing_rx = models.FloatField(default=0.0)
+    dispensing_ry = models.FloatField(default=0.0)
+    dispensing_rz = models.FloatField(default=0.0)
 
     # 조제기 서랍 열기 위치
     drawer_x = models.FloatField(default=0.0)
