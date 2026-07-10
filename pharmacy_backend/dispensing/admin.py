@@ -7,8 +7,28 @@ class MedicineAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "medicine_name",
-        "storage_location",
-        "dispensing_location",
+
+        "storage_x",
+        "storage_y",
+        "storage_z",
+        "storage_rx",
+        "storage_ry",
+        "storage_rz",
+
+        "dispensing_x",
+        "dispensing_y",
+        "dispensing_z",
+        "dispensing_rx",
+        "dispensing_ry",
+        "dispensing_rz",
+
+        "drawer_x",
+        "drawer_y",
+        "drawer_z",
+        "drawer_rx",
+        "drawer_ry",
+        "drawer_rz",
+
         "lid_type",
         "storage_stock",
         "dispensing_stock",

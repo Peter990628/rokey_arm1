@@ -3,9 +3,42 @@ from .models import Medicine, Event, EventItem
 
 
 class MedicineSerializer(serializers.ModelSerializer):
+    medicine_number = serializers.IntegerField(
+        source="id",
+        read_only=True
+    )
+
     class Meta:
         model = Medicine
-        fields = "__all__"
+        fields = [
+            "medicine_number",
+            "medicine_name",
+
+            "storage_x",
+            "storage_y",
+            "storage_z",
+            "storage_rx",
+            "storage_ry",
+            "storage_rz",
+
+            "dispensing_x",
+            "dispensing_y",
+            "dispensing_z",
+            "dispensing_rx",
+            "dispensing_ry",
+            "dispensing_rz",
+
+            "drawer_x",
+            "drawer_y",
+            "drawer_z",
+            "drawer_rx",
+            "drawer_ry",
+            "drawer_rz",
+
+            "lid_type",
+            "storage_stock",
+            "dispensing_stock",
+        ]
 
 
 class EventItemSerializer(serializers.ModelSerializer):

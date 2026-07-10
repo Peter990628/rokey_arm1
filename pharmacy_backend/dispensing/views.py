@@ -177,12 +177,36 @@ class NextTaskAPIView(APIView):
             medicine = item.medicine
 
             items.append({
+                "medicine_number": medicine.id,
                 "medicine_name": medicine.medicine_name,
                 "quantity": item.quantity,
                 "order": item.order,
                 "item_status": item.status,
-                "storage_location": medicine.storage_location,
-                "dispensing_location": medicine.dispensing_location,
+                "storage_pose": {
+                    "x": medicine.storage_x,
+                    "y": medicine.storage_y,
+                    "z": medicine.storage_z,
+                    "rx": medicine.storage_rx,
+                    "ry": medicine.storage_ry,
+                    "rz": medicine.storage_rz,
+                },
+
+                "dispensing_pose": {
+                    "x": medicine.dispensing_x,
+                    "y": medicine.dispensing_y,
+                    "z": medicine.dispensing_z,
+                    "rx": medicine.dispensing_rx,
+                    "ry": medicine.dispensing_ry,
+                    "rz": medicine.dispensing_rz,
+                },
+                "drawer_pose": {
+                    "x": medicine.drawer_x,
+                    "y": medicine.drawer_y,
+                    "z": medicine.drawer_z,
+                    "rx": medicine.drawer_rx,
+                    "ry": medicine.drawer_ry,
+                    "rz": medicine.drawer_rz,
+                },
                 "lid_type": medicine.lid_type,
                 "storage_stock": medicine.storage_stock,
                 "dispensing_stock": medicine.dispensing_stock
