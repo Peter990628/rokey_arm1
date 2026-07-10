@@ -36,18 +36,21 @@ TCP_WITH_SCRAPER = "Tool_scraper"
 HOME = [0, 0, 90, 0, 90, 0]
 
 # ---- 종이봉투 위치 ----
-PAPER_BAG_ABOVE = [-36.32, 53.19, 28.79, -0.59, 98.47, -130.76]
-PAPER_BAG_GRIP = [-37.34, 57.57, 46.94, -0.61, 75.93, -131.56]
+PAPER_BAG_ABOVE = [-17.36,13.85,88.76,-20.56,71.08,77.09]
+PAPER_BAG_GRIP = [-36.39, 50.57, 62.77, -3.46, 63.79, 52.22]
 PAPER_BAG_Y_AWAY = [-79.23, 48.44, 36.97, -0.07, 94.56, -42.92]
 PAPER_BAG_SHELF = [-51.77, -8.32, 84.92, -0.72, 101.25, -52.54]
 
 # ---- 스크래퍼 위치 ----
-TOOL_STAND_SCRAPER = [16.97, 17.76, 95.13, -197.14, -36.27, 37.03]
-DISPENSING_POINT = [-30.39, 4.17, 118.46, -120.53, -27.26, -75.17]
-POUCH_POS_ABOVE = [9.13, 27.12, 89.56, -46.16, 79.67, -61.32]
-POUCH_POS = [-0.23, 20.16, 89.98, -36.90, 74.35, -74.70]
-SCRAPER_RETURN_MIDDLE = [11.03, 1.16, 89.41, -0.92, 90.33, -79.64]
-SCRAPER_RETURN_STAND = [17.76, 24.26, 82.79, -12.23, 52.64, -154.53]
+TOOL_STAND_SCRAPER = [15.82, 18.05, 97.40, -13.95, 29.76, 26.46]
+DISPENSING_POINT = [-41.82, 10.51, 118.59, 72.71, 34.14, -99.73]
+POUCH_POS_MIDDLE =[11.52, 8.37, 117.84, 119.58, -54.84, -69.72]
+POUCH_POS_ABOVE = [10.31, 25.37, 85.48, 131.18, -83.59, -64.88]
+POUCH_POS = [-11.49, 20.27, 77.08, 159.48, -76.69, -97.15]
+SCRAPER_RETURN_MIDDLE = [14.69, -0.88, 91.28, 179.97, -89.60, -73.89]
+SCRAPER_RETURN_MIDDLE_MIDDLE = [14.83, 4.70, 57.95, 179.95, -117.35, -73.88]
+SCRAPER_RETURN_STAND = [16.36, 12.25, 99.06, 169.71, -36.23, -159.68] # 여기서 놓는거로 함 나중에 수정할 수도 
+# SCRAPER_RETURN_FINAL = [17.64, 17.72, 90.74, -13.68, 44.22, -149.59]
 
 
 class ManipulatorTest2:
@@ -76,7 +79,7 @@ class ManipulatorTest2:
         sleep(1)
 
     # ------------------------------------------------------------
-    # 1단계: 종이봉투를 잡아서 수납대 위에 내려놓기
+    # 3단계: 종이봉투를 잡아서 수납대 위에 내려놓기
     # ------------------------------------------------------------
     def run_paper_bag_sequence(self) -> bool:
         self.node.get_logger().info("[PAPER 0/7] 종이봉투 작업 시작")
@@ -88,6 +91,7 @@ class ManipulatorTest2:
         movej(posj(*HOME), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
 
+        
         self.node.get_logger().info("[PAPER 2/7] 봉투 위로 이동")
         movej(posj(*PAPER_BAG_ABOVE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
@@ -143,7 +147,7 @@ class ManipulatorTest2:
         )
 
     # ------------------------------------------------------------
-    # 2단계: 스크래퍼를 집어서 조제기 배출구에서 대기
+    # 1단계: 스크래퍼를 집어서 조제기 배출구에서 대기
     # ------------------------------------------------------------
     def pickup_scraper_and_wait(self):
         self.node.get_logger().info("[SCRAPER 0/3] 스크래퍼 픽업 시작")
@@ -162,13 +166,7 @@ class ManipulatorTest2:
         self.node.get_logger().info(f"TCP 전환: {TCP_WITH_SCRAPER}")
 
         self.node.get_logger().info("[SCRAPER 3/3] 조제기 배출구로 이동")
-        movel(
-            posx(-10, 0, 0, 0, 0, 0),
-            mod=DR_MV_MOD_REL,
-            ref=DR_BASE,
-            v=SCRAPER_LINEAR_V,
-            a=SCRAPER_LINEAR_A,
-        )
+
         movel(
             posx(0, 0, 160, 0, 0, 0),
             mod=DR_MV_MOD_REL,
@@ -184,7 +182,7 @@ class ManipulatorTest2:
             a=SCRAPER_LINEAR_A,
         )
         movel(
-            posx(0, -250, 0, 0, 0, 0),
+            posx(0, -400, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
             ref=DR_BASE,
             v=SCRAPER_LINEAR_V,
@@ -200,9 +198,10 @@ class ManipulatorTest2:
         )
 
     # ------------------------------------------------------------
-    # 3단계: 스크래퍼에 담긴 약을 봉투에 붓고 스크래퍼 반납
+    # 2단계: 스크래퍼에 담긴 약을 봉투에 붓고 스크래퍼 반납
     # ------------------------------------------------------------
     def pour_and_return_scraper(self):
+        movej(posj(*POUCH_POS_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
         self.node.get_logger().info("[POUR 1/3] 봉투 위치 위로 이동")
         movej(posj(*POUCH_POS_ABOVE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
 
@@ -213,22 +212,26 @@ class ManipulatorTest2:
         self.node.get_logger().info("[POUR 3/3] 스크래퍼 거치대로 복귀 및 반납")
         movej(posj(*SCRAPER_RETURN_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
         sleep(0.5)
-        movej(posj(*SCRAPER_RETURN_STAND), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
 
-        self.release()
+        movej(posj(*SCRAPER_RETURN_MIDDLE_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        sleep(0.5)
+
+        movej(posj(*SCRAPER_RETURN_STAND), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.release() # 스크래퍼 놔주기
+
+        # 거치대에 내려놓고 X 만큼 뒤로 빠진 후 home 으로 이동 할게요 해벽님~~~ 감사~~
         movel(
-            posx(-20, 0, 0, 0, 0, 0),
+            posx(-100, 0, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
             ref=DR_BASE,
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
-        self.grip()
-
         set_tcp(TCP_GRIPPER_ONLY)
         self.node.get_logger().info(f"TCP 전환: {TCP_GRIPPER_ONLY}")
-
+        self.node.get_logger().info("스크래퍼 작업 종료.")
         movej(posj(*HOME), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.grip()
 
     # ------------------------------------------------------------
     # 전체 테스트 동작
