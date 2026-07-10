@@ -177,6 +177,7 @@ class NextTaskAPIView(APIView):
             medicine = item.medicine
 
             items.append({
+                "medicine_number": medicine.id,
                 "medicine_name": medicine.medicine_name,
                 "quantity": item.quantity,
                 "order": item.order,

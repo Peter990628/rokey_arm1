@@ -10,10 +10,13 @@ from std_msgs.msg import String
 ROBOT_ID = "dsr01"
 ROBOT_MODEL = "m0609"
 
-VELOCITY = 30
-ACC = 30
+VELOCITY = 50
+ACC = 50
 ON = 1
 OFF = 0
+
+MEDICINE_TOPIC = "/dsr01/pharmacy/medicine"
+DONE_URL = "http://172.23.0.129:8000/api/tasks/refill/"
 
 DR_init.__dsr__id = ROBOT_ID
 DR_init.__dsr__model = ROBOT_MODEL
@@ -29,7 +32,6 @@ class PourPills(Node):
             set_digital_output,
             set_tool,
             set_tcp,
-            movej,
             movel,
             movejx,
             task_compliance_ctrl,
@@ -40,13 +42,12 @@ class PourPills(Node):
             DR_MV_MOD_REL,
         )
 
-        from DR_common2 import posj, posx
+        from DR_common2 import posx
 
         # DSR 함수 저장
         self.set_digital_output = set_digital_output
         self.set_tool = set_tool
         self.set_tcp = set_tcp
-        self.movej = movej
         self.movel = movel
         self.movejx = movejx
         self.task_compliance_ctrl = task_compliance_ctrl
@@ -57,7 +58,6 @@ class PourPills(Node):
         # DSR 상수 저장
         self.DR_BASE = DR_BASE
         self.DR_MV_MOD_REL = DR_MV_MOD_REL
-        self.posj = posj
         self.posx = posx
 
         self.vel = VELOCITY
@@ -67,10 +67,30 @@ class PourPills(Node):
         self.task_ready = False
         self.medicine_id = None
         self.medicine_name = None
-        self.amount = None
+        self.refill_amount = None
         self.lid_type = None
+
+        self.dispensing_x = None
+        self.dispensing_y = None
+        self.dispensing_z = None
+        self.dispensing_rx = None
+        self.dispensing_ry = None
+        self.dispensing_rz = None
+
+        self.drawer_x = None
+        self.drawer_y = None
+        self.drawer_z = None
+        self.drawer_rx = None
+        self.drawer_ry = None
+        self.drawer_rz = None
+
         self.X_DISPENSER_POS = None
-        self.X_CLOSE_DRAWER = None
+        self.X_DRAWER = None
+        self.X_LOCK_RETURN = None
+        self.X_TRASH_DROP = None
+        self.X_TWEEZER_HOME = None
+        self.X_TWEEZER_NEAR = None
+        self.X_DRAWER_CLOSED = None
 
         self.define_positions()
         self.create_subscriptions()
@@ -81,15 +101,15 @@ class PourPills(Node):
     # --------------------------------------------------
     def define_positions(self):
         
-        self.X_TRASH_DROP = self.posx()      # 쓰레기통 위치
-        self.J_TWEEZER_HOME = self.posj()    # 집게 툴 거치대 위치
-        self.X_TWEEZER_NEAR = self.posx()    # 집게 툴 거치대 주변 위치     
+        self.X_TRASH_DROP = self.posx(-423.12, -96.72, 89.41, 8.51, -179.18, 101.63)      # 쓰레기통 위치
+        self.X_TWEEZER_HOME = self.posx(744.83, -5.82, 98.24, 177.66, -87.42, -81.97 )    # 집게 툴 거치대 위치
+        self.X_TWEEZER_NEAR = self.posx(704.83, -5.82, 98.24, 177.66, -87.42, -81.97)    # 집게 툴 거치대 주변 위치     
     # ----------------------------
     # 구독하는거
     # ----------------------------------
     def create_subscriptions(self):
-        self.sub_medicine = self.create_subscription(String, 'dsr01/pharmacy/medicine', self.dispenser_pose_callback, 10)
-        self.get_logger().info("구독함")
+        self.sub_medicine = self.create_subscription(String, MEDICINE_TOPIC, self.dispenser_pose_callback, 10)
+        self.get_logger().info(f"구독함:{MEDICINE_TOPIC}")
 
     def dispenser_pose_callback(self, msg):
         try:
@@ -106,13 +126,27 @@ class PourPills(Node):
 
     def set_task_from_data(self, task):
         required_keys = [
-        "id",
-        "medicine_name",
-        "dispensing_x",
-        "dispensing_y",
-        "dispensing_z",
-        "lid_type"
-    ]
+            "id",
+            "medicine_name",
+
+            "dispensing_x",
+            "dispensing_y",
+            "dispensing_z",
+            "dispensing_rx",
+            "dispensing_ry",
+            "dispensing_rz",
+
+            "drawer_x",
+            "drawer_y",
+            "drawer_z",
+            "drawer_rx",
+            "drawer_ry",
+            "drawer_rz",
+            
+            "lid_type",
+            "storage_stock",
+            "dispensing_stock"
+        ]
         for key in required_keys:
             if key not in task:
                 raise KeyError(f"{key}가 없음")
@@ -120,28 +154,54 @@ class PourPills(Node):
         self.current_task = task
         self.medicine_id = task["id"]
         self.medicine_name = task["medicine_name"]
+
         self.dispensing_x = float(task["dispensing_x"])
         self.dispensing_y = float(task["dispensing_y"])
         self.dispensing_z = float(task["dispensing_z"])
-        self.lid_type = task["lid_type"]
+        self.dispensing_rx = float(task["dispensing_rx"])
+        self.dispensing_ry = float(task["dispensing_ry"])
+        self.dispensing_rz = float(task["dispensing_rz"])
+
+        self.drawer_x = float(task["drawer_x"])
+        self.drawer_y = float(task["drawer_y"])
+        self.drawer_z = float(task["drawer_z"])
+        self.drawer_rx = float(task["drawer_rx"])
+        self.drawer_ry = float(task["drawer_ry"])
+        self.drawer_rz = float(task["drawer_rz"])
+
+        self.lid_type = str(task["lid_type"]).strip().lower()
+
+        raw_refill_amount = task.get(
+            "refill_amount",
+            task.get("amount", task.get("quantity"))
+        )
+
+        if raw_refill_amount is None:
+            raise KeyError("refill_amount 또는 amount 또는 quantity 중 하나가 필요함")
+
+        self.refill_amount = int(raw_refill_amount)
+
+        if self.refill_amount <= 0:
+            raise ValueError("refill_amount는 1 이상이어야 함")
 
         self.X_DISPENSER_POS = self.posx(
             self.dispensing_x,
             self.dispensing_y,
             self.dispensing_z,
-            rx,
-            ry,
-            rz # 이것들은 재보고 
+            self.dispensing_rx,
+            self.dispensing_ry,
+            self.dispensing_rz 
         )
 
-        self.X_CLOSE_DRAWER = self.posx(
-            self.dispensing_x + dx, #dx값 해보고
-            self.dispensing_y + dy,
-            self.dispensing_z,
-            rx,
-            ry,
-            rz
+        self.X_DRAWER = self.posx(
+            self.drawer_x, 
+            self.drawer_y,
+            self.drawer_z,
+            self.drawer_rx,
+            self.drawer_ry,
+            self.drawer_rz
         )
+
     def wait_for_task(self):
         self.get_logger().info("작업 데이터 대기 중")
         while rclpy.ok() and not self.task_ready:
@@ -156,7 +216,7 @@ class PourPills(Node):
     def init_robot(self):
         self.get_logger().info("로봇 초기 세팅 시작")
         self.set_tool("Tool Weight_1")
-        self.set_tcp("2FG_TCP") # 수정필요
+        self.set_tcp("Tool_v1") 
         self.release()
         self.get_logger().info("약 붓기 시작")
 
@@ -200,33 +260,38 @@ class PourPills(Node):
     # 5. 조제기 / 서랍 쪽으로 이동
     # --------------------------------------------------
     def open_drawer(self):
-        if self.X_OPEN_DRAWER is None:
+        if self.X_DRAWER is None:
             raise RuntimeError("서랍 열기 위치가 아직 설정되지 않음")
 
         self.get_logger().info("서랍 열기 시작")
-        self.movel(self.X_OPEN_DRAWER, vel=10, acc=10, ref=self.DR_BASE)
+        self.movejx(self.X_DRAWER, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol = 2 )
         self.grip()
-        self.movel(
-            self.posx(-50, 0, 0, 0, 0, 0),
-            vel=10,
-            acc=10,
-            ref=self.DR_BASE,
-            mod=self.DR_MV_MOD_REL,
-        )
+        self.movel(self.posx(-125, 0, 0, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+
+        cur_pos = self.get_current_posx()[0]
+        x, y, z, rx, ry, rz = cur_pos[:6]
+
+        self.X_DRAWER_CLOSED = self.posx(x, y, z, rx, ry, rz)
+
         self.get_logger().info("서랍 열기 완료")
     
     def go_to_tool(self):
-        # self.X_LOCK_RETURN # 혜승님한테 받은 좌표임 
-        movejx(self.X_LOCK_RETURN, vel, acc, pos = )
+        self.X_LOCK_RETURN = self.posx() # 집게 잡는거 일때(나중에 없어질 예정 테스트용)
+        # self.X_LOCK_RETURN = self.posx(551.25, 3.43, 0.70, 21.22, -179.25, 14.06) # 툴 잡는거 일때(나중에 없어질 예정 테스트용)
+
+        if self.X_LOCK_RETURN is None:
+            raise RuntimeError("X_LOCK_RETURN 좌표가 설정되지 않음")
+
+        self.movejx(self.X_LOCK_RETURN, vel = self.vel, acc = self.acc, sol = 2)
         
         cur_pos = self.get_current_posx()[0]
         x, y, z, rx, ry, rz = cur_pos[:6]
 
         # TODO: 돌리기 전 접근 자세 보정값 실측 후 수정
         contact_pos = self.posx(x, y, z, rx, ry, rz)
-        self.movel(contact_pos, vel=10, acc=10, ref=self.DR_BASE)
+        self.movel(contact_pos, vel = self.vel, acc = self.acc, ref=self.DR_BASE)
 
-        self.movel(self.posx(0,0,30, 0, 0, 0), vel, acc, mod=self.DR_MV_MOD_REL)
+        self.movel(self.posx(0,0,30, 0, 0, 0), vel = self.vel, acc = self.acc, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
 
     def move_pour(self):
         if self.X_DISPENSER_POS is None:
@@ -262,7 +327,7 @@ class PourPills(Node):
         try:
             self.task_compliance_ctrl([10000, 500, 10000, 10000, 10000, 10000])
             self.set_desired_force(
-                fd=[0, 0, 0, 0, 0, 0],
+                fd=[0, 10, 0, 0, 0, 0],
                 dir=[0, 1, 0, 0, 0, 0],
                 mod=self.DR_MV_MOD_REL,
             )
@@ -280,10 +345,9 @@ class PourPills(Node):
 
         pour_start_pose = self.posx(x, y, z, rx, ry, rz)
 
-        # TODO: 실제 붓기 각도 입력
-        pour_tilt_pose = self.posx(x, y, z, rx, ry, rz)
+        pour_tilt_pose = self.posx(0, 0, 0, 20, 0, 0)
 
-        self.movel(pour_tilt_pose, vel=10, acc=10, ref=self.DR_BASE)
+        self.movel(pour_tilt_pose, vel=10, acc=10, ref=self.DR_BASE, mod = self.DR_MV_MOD_REL)
         sleep(2)
         self.movel(pour_start_pose, vel=10, acc=10, ref=self.DR_BASE)
 
@@ -296,7 +360,7 @@ class PourPills(Node):
     # --------------------------------------------------
     def move_trash(self):
         self.get_logger().info("약통 버리기 시작")
-        self.movel(self.X_TRASH_DROP, vel=10, acc=10, ref=self.DR_BASE)
+        self.movejx(self.X_TRASH_DROP, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=2)
         self.little()
         self.get_logger().info("약통 버리기 완료")
 
@@ -305,9 +369,8 @@ class PourPills(Node):
     # --------------------------------------------------
     def tool_drop(self):
         self.get_logger().info("집게 놓기 시작")
-        ## 좌표 설정해야됨 
-        self.movel(self.X_TWEEZER_NEAR, vel=self.vel, acc=self.acc, ref=self.DR_BASE)
-        self.movej(self.J_TWEEZER_HOME, vel=20, acc=20)
+        self.movejx(self.X_TWEEZER_NEAR, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=2)
+        self.movejx(self.X_TWEEZER_HOME, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=2)
         self.release()
         self.get_logger().info("집게 놓기 완료")
 
@@ -315,22 +378,16 @@ class PourPills(Node):
     # 10. 서랍 닫기
     # --------------------------------------------------
     def close_drawer(self):
-        if self.X_CLOSE_DRAWER is None:
+        if self.X_DRAWER_CLOSED is None:
+            raise RuntimeError("서랍 열린 후 위치 X_DRAWER_CLOSED가 설정되지 않음")
+        if self.X_DRAWER is None:
             raise RuntimeError("서랍 닫기 위치가 아직 설정되지 않음")
 
         self.get_logger().info("서랍 닫기 시작")
-        self.movel(self.X_CLOSE_DRAWER, vel=10, acc=10, ref=self.DR_BASE)
+        self.movejx(self.X_DRAWER_CLOSED, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=2)
 
-        # TODO: 실제 서랍 닫는 방향 확인 후 수정
         self.movel(
-            self.posx(-50, 0, 0, 0, 0, 0),
-            vel=10,
-            acc=10,
-            ref=self.DR_BASE,
-            mod=self.DR_MV_MOD_REL,
-        )
-        self.movel(
-            self.posx(50, 0, 0, 0, 0, 0),
+            self.posx(125, 0, 0, 0, 0, 0),
             vel=10,
             acc=10,
             ref=self.DR_BASE,
@@ -342,15 +399,21 @@ class PourPills(Node):
     # 11. DB / task manager 알림
     # --------------------------------------------------
     def notify_done(self):
+
+        if self.medicine_name is None:
+            raise RuntimeError("medicine_name이 설정되지 않음")
+
+        if self.refill_amount is None:
+            raise RuntimeError("refill_amount가 설정되지 않음")
+
         self.get_logger().info("리필 완료post 함")
-        url = "http://172.23.0.129:8000/api/tasks/refill/"
         payload = {
             "medicine_name": self.medicine_name,
-            "amount": self.amount
+            "amount": self.refill_amount
         }
 
         try:
-            response = requests.post(url, json=payload, timeout=3)
+            response = requests.post(DONE_URL, json=payload, timeout=3)
             if response.ok:
                 self.get_logger().info(f"리필완 post 보냄: {response.json()}")
             else:
@@ -364,13 +427,14 @@ class PourPills(Node):
 
         
         self.open_drawer()
-        self.set_tcp("집게 중간")
+        self.set_tcp("Tool_tweezer")
         self.go_to_tool()
         self.set_tcp("집게 끝")
         self.move_pour()
         self.move_trash()
-        self.set_tcp("집게 중간")
+        self.set_tcp("Tool_tweezer")
         self.tool_drop()
+        self.close_drawer()
 
         self.get_logger().info("집게 방식 작업 완료")
 
@@ -378,11 +442,12 @@ class PourPills(Node):
         self.get_logger().info("pull 타입 작업 시작")
 
         self.open_drawer()
-        self.set_tcp("약통 중간")
+        self.set_tcp("Tool_pill")
         self.go_to_tool()
-        self.set_tcp("약통 끝")
+        self.set_tcp("Tool_pill_side")
         self.move_pour()
         self.move_trash()# 이거했을 때 약통 안버려지면 little>release로 바꿔서 함수 하나 더 만드셈
+        self.close_drawer()
 
         self.get_logger().info("병따개 끝")
 
@@ -427,8 +492,6 @@ def main(args=None):
         if robot is not None:
             robot.destroy_node()
         rclpy.shutdown()
-
-
 
 if __name__ == "__main__":
     main()
