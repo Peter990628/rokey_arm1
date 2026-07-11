@@ -64,7 +64,7 @@ class PourPills(Node):
         self.acc = ACC
 
         self.current_task = None
-        self.task_ready = False
+        self.task_queue = []
         self.medicine_id = None
         self.medicine_name = None
         self.refill_amount = None
@@ -117,16 +117,18 @@ class PourPills(Node):
             if not isinstance(data, list) or len(data) == 0:
                 raise ValueError("수신 데이터는 비어있지 않은 list여야 함")
 
-            self.set_task_from_data(data[0])
-            self.task_ready = True
-            self.get_logger().info(f"작업 수신 완료: {self.medicine_name}, lid_type={self.lid_type}")
+            self.task_queue.extend(data)
+            self.get_logger().info(
+                f"작업 {len(data)}개 추가 수신, "
+                f"현재 대기 작업 {len(self.task_queue)}개"
+            )
 
         except Exception as e:
             self.get_logger().error(f"작업데이터받기실패:{e}")
 
     def set_task_from_data(self, task):
         required_keys = [
-            "id",
+            "medicine_number",
             "medicine_name",
 
             "dispensing_x",
@@ -152,7 +154,7 @@ class PourPills(Node):
                 raise KeyError(f"{key}가 없음")
         
         self.current_task = task
-        self.medicine_id = task["id"]
+        self.medicine_id = task["medicine_number"]
         self.medicine_name = task["medicine_name"]
 
         self.dispensing_x = float(task["dispensing_x"])
@@ -171,18 +173,13 @@ class PourPills(Node):
 
         self.lid_type = str(task["lid_type"]).strip().lower()
 
-        raw_refill_amount = task.get(
-            "refill_amount",
-            task.get("amount", task.get("quantity"))
-        )
+        self.storage_stock = int(task["storage_stock"])
+        self.dispensing_stock = int(task["dispensing_stock"])
 
-        if raw_refill_amount is None:
-            raise KeyError("refill_amount 또는 amount 또는 quantity 중 하나가 필요함")
-
-        self.refill_amount = int(raw_refill_amount)
+        self.refill_amount = self.storage_stock
 
         if self.refill_amount <= 0:
-            raise ValueError("refill_amount는 1 이상이어야 함")
+            raise ValueError("storage_stock이 0 이하라서 리필할 수 없음")
 
         self.X_DISPENSER_POS = self.posx(
             self.dispensing_x,
@@ -204,10 +201,11 @@ class PourPills(Node):
 
     def wait_for_task(self):
         self.get_logger().info("작업 데이터 대기 중")
-        while rclpy.ok() and not self.task_ready:
+
+        while rclpy.ok() and len(self.task_queue) == 0:
             rclpy.spin_once(self, timeout_sec=0.1)
 
-        if not self.task_ready:
+        if len(self.task_queue) == 0:
             raise RuntimeError("작업 데이터 수신 실패")
 
     # --------------------------------------------------
@@ -462,12 +460,30 @@ class PourPills(Node):
 
         self.wait_for_task()
 
-        if self.lid_type == "pull":
-            self.run_hole_lid_task()
-        else:
-            self.run_gripper_lid_task()
+        while rclpy.ok():
+            while self.task_queue:
+                task = self.task_queue.pop(0)
+                self.set_task_from_data(task)
 
-        self.get_logger().info("전체 작업 완료")
+                self.get_logger().info(
+                    f"작업 시작: {self.medicine_name}, "
+                    f"lid_type={self.lid_type}, "
+                    f"refill_amount={self.refill_amount}"
+                )
+
+                if self.lid_type == "pull":
+                    self.run_hole_lid_task()
+                else:
+                    self.run_gripper_lid_task()
+
+                self.get_logger().info(f"작업 완료: {self.medicine_name}")
+
+                # 약 하나 끝난 뒤 새 토픽이 들어왔는지 확인
+                rclpy.spin_once(self, timeout_sec=0.1)
+
+            # queue가 비었을 때도 새 작업을 조금 기다림
+            self.get_logger().info("대기 작업 없음. 새 작업 대기 중")
+            rclpy.spin_once(self, timeout_sec=0.5)
 
 
 def main(args=None):
