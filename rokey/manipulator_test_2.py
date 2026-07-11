@@ -2,11 +2,8 @@
 # paper_bag_test + manipulation_node_scraper
 # 담당자 : 박현정, 조해벽
 
-# 역할:
-# 1. 스크래퍼를 집어서 조제기 배출구로 이동
-# 2. 스크래퍼에 담긴 약을 종이봉투에 붓고 스크래퍼 반납
-# 3. 종이봉투를 잡아서 수납대 위치에 내려놓기
-# 4. 전체 테스트 동작 완료 후 task_done pub
+
+
 
 import sys
 from time import sleep
@@ -40,8 +37,12 @@ HOME = [0, 0, 90, 0, 90, 0]
 PAPER_BAG_ABOVE = [-17.36,13.85,88.76,-20.56,71.08,77.09]
 PAPER_BAG_GRIP_MIDDLE = [-39.26, 40.82, 55.66, -2.99, 80.47, 48.32]
 PAPER_BAG_GRIP = [-36.27, 47.72, 68.28, -3.37, 60.99, 49.45]
-PAPER_BAG_Y_AWAY = [-79.23, 48.44, 36.97, -0.07, 94.56, -42.92]
-PAPER_BAG_SHELF = [-51.77, -8.32, 84.92, -0.72, 101.25, -52.54]
+
+# ---- 수납대 최종 TCP 허용 범위 [mm] ----
+SHELF_X_MIN, SHELF_X_MAX = 210.0, 230.0
+SHELF_Y_MIN, SHELF_Y_MAX = -230.0, -170.0
+SHELF_Z_MIN, SHELF_Z_MAX = 238.0, 250.0
+
 
 # ---- 스크래퍼 위치 ----
 TOOL_STAND_SCRAPER = [15.82, 18.05, 97.40, -13.95, 29.76, 26.46]
@@ -84,72 +85,130 @@ class ManipulatorTest2:
     # 3단계: 종이봉투를 잡아서 수납대 위에 내려놓기
     # ------------------------------------------------------------
     def run_paper_bag_sequence(self) -> bool:
-        self.node.get_logger().info("[PAPER 0/7] 종이봉투 작업 시작")
+        self.node.get_logger().info("[PAPER 0/6] 종이봉투 작업 시작")
 
         set_tcp(TCP_GRIPPER_ONLY)
         self.release()
 
-        self.node.get_logger().info("[PAPER 1/7] 홈으로 이동")
+        self.node.get_logger().info("[PAPER 1/6] 홈으로 이동")
         movej(posj(*HOME), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
 
         
-        self.node.get_logger().info("[PAPER 2/7] 봉투 위로 이동")
+        self.node.get_logger().info("[PAPER 2/6] 봉투 위로 이동")
         movej(posj(*PAPER_BAG_ABOVE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
         movej(posj(*PAPER_BAG_GRIP_MIDDLE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
 
-        self.node.get_logger().info("[PAPER 3/7] 봉투 위치로 내려가서 잡기")
+        self.node.get_logger().info("[PAPER 3/6] 봉투 위치로 내려가서 잡기")
         movej(posj(*PAPER_BAG_GRIP), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         self.grip()
 
-        self.node.get_logger().info("[PAPER 4/7] 봉투를 아래로 살짝 빼기")
+        self.node.get_logger().info("[PAPER 4/6] 봉투를 아래로 살짝 빼기")
         wait(0.5)
         movel(
             posx(0, 0, -100, 0, 0, 0),
-            mod=DR_MV_MOD_REL,
-            ref=DR_BASE,
-            v=100,
-            a=50,
-        )
-
-        self.node.get_logger().info("[PAPER 5/7] 봉투를 위로 들어 올리기")
-        wait(0.5)
-        movel(
-            posx(0, -50, 300, 0, 0, 0),
             mod=DR_MV_MOD_REL,
             ref=DR_BASE,
             v=50,
             a=50,
         )
 
-        self.node.get_logger().info("[PAPER 6/7] 수납대 이동 전 간섭 회피 위치로 이동")
-        wait(0.5)
-        movej(posj(*PAPER_BAG_Y_AWAY), vel=PAPER_VELOCITY, acc=PAPER_ACC)
-
-        self.node.get_logger().info("[PAPER 7/7] 수납대 위로 이동")
-        wait(0.5)
-        movej(posj(*PAPER_BAG_SHELF), vel=PAPER_VELOCITY, acc=PAPER_ACC)
-
-        current_posj = get_current_posj()
-        if self._is_at_paper_bag_shelf(current_posj):
-            self.release()
-            self.node.get_logger().info("종이봉투 수납대 배치 완료")
-            return True
-
-        self.node.get_logger().warn(
-            f"수납대 목표 위치 확인 실패. current_posj={current_posj}"
-        )
-        return False
-
-    def _is_at_paper_bag_shelf(self, current_posj) -> bool:
-        return (
-            -52.00 <= current_posj[0] <= -50.00
-            and -9.00 <= current_posj[1] <= -8.00
-            and 84.00 <= current_posj[2] <= 86.00
+        amovel(
+            posx(0, -100, 0, 0, 0, 0),
+            mod=DR_MV_MOD_REL,
+            ref=DR_BASE,
+            v=50,
+            a=50,
         )
 
+        movel(
+            posx(-300, 0, 0, 0, 0, 0),
+            mod=DR_MV_MOD_REL,
+            ref=DR_BASE,
+            v=50,
+            a=50,
+        )
+
+
+        self.node.get_logger().info("[PAPER 5/6] 봉투를 위로 들어 올리기")
+        wait(0.5)
+        movel(
+            posx(0, 0, 500, 0, 0, 0),
+            mod=DR_MV_MOD_REL,
+            ref=DR_BASE,
+            v=50,
+            a=50,
+        )
+
+        self.node.get_logger().info("[PAPER 6/6] 수납대 위로 이동")
+        wait(0.5)
+        movel(
+            posx(0, 300, 0, 0, 0, 0),
+            mod=DR_MV_MOD_REL,
+            ref=DR_BASE,
+            v=100,
+            a=50,
+        )
+
+        wait(0.5)
+        movel(
+            posx(0, 0, -60, 0, 0, 0),
+            mod=DR_MV_MOD_REL,
+            ref=DR_BASE,
+            v=50,
+            a=50,
+        )
+
+        wait(0.5)
+        
+        if not self._is_at_paper_bag_shelf():
+            self.node.get_logger().error(
+                "수납대 목표 범위를 벗어나 봉투를 놓지 않습니다."
+            )
+            return False
+
+        self.release()
+        self.node.get_logger().info("종이봉투 수납대 배치 완료")
+        return True   
+                
+                  
+    def _is_at_paper_bag_shelf(self) -> bool:
+        current_posx, _ = get_current_posx(ref=DR_BASE)
+
+        x = current_posx[0]
+        y = current_posx[1]
+        z = current_posx[2]
+
+        self.node.get_logger().info(
+            f"수납대 도착 좌표 확인: x={x:.2f}, y={y:.2f}, z={z:.2f}"
+        )
+
+        x_ok = SHELF_X_MIN <= x <= SHELF_X_MAX
+        y_ok = SHELF_Y_MIN <= y <= SHELF_Y_MAX
+        z_ok = SHELF_Z_MIN <= z <= SHELF_Z_MAX
+
+        if not x_ok:
+            self.node.get_logger().warn(
+                f"수납대 X 범위 이탈: {x:.2f} "
+                f"(허용 {SHELF_X_MIN}~{SHELF_X_MAX})"
+            )
+
+        if not y_ok:
+            self.node.get_logger().warn(
+                f"수납대 Y 범위 이탈: {y:.2f} "
+                f"(허용 {SHELF_Y_MIN}~{SHELF_Y_MAX})"
+            )
+
+        if not z_ok:
+            self.node.get_logger().warn(
+                f"수납대 Z 범위 이탈: {z:.2f} "
+                f"(허용 {SHELF_Z_MIN}~{SHELF_Z_MAX})"
+            )
+
+        return x_ok and y_ok and z_ok
+    
     # ------------------------------------------------------------
     # 1단계: 스크래퍼를 집어서 조제기 배출구에서 대기
     # ------------------------------------------------------------
@@ -260,8 +319,8 @@ class ManipulatorTest2:
 
 
 def main(args=None):
-    global movej, movel, set_tool, set_tcp
-    global set_digital_output, get_current_posj
+    global movej, movel, amovel, set_tool, set_tcp
+    global set_digital_output, get_current_posx
     global DR_BASE, DR_MV_MOD_REL
     global posj, posx
     global wait
@@ -274,10 +333,11 @@ def main(args=None):
         from DSR_ROBOT2 import (
             movej,
             movel,
+            amovel,
             set_tool,
             set_tcp,
             set_digital_output,
-            get_current_posj,
+            get_current_posx,
             DR_BASE,
             DR_MV_MOD_REL,
             wait,
