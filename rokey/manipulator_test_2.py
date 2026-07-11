@@ -63,7 +63,7 @@ class ManipulatorTest2:
     
 
     # ------------------------------------------------------------
-    # log_current_pos 동작
+    # log_current_pos 디버그용 로그 
     # ------------------------------------------------------------
 
     def log_current_pos(self) :
@@ -73,7 +73,7 @@ class ManipulatorTest2:
         y = current_posx[1]
         z = current_posx[2]
         self.node.get_logger().info(f"좌표 확인: x={x:.2f}, y={y:.2f}, z={z:.2f}")
-        self.node.get_logger().info(f"좌표 확인(joint): j1={current_posj[0]:.2f}, j2={current_posj[1]:.2f}, j3={current_posj[2]:.2f}, j4={current_posj[3]:.2f}, j5={current_posj[4]:.2f}, j6={current_posj[5]:.2f}")
+        self.node.get_logger().info(f"좌표 확인(joint): j1={current_posj[0]:.2f}, j2={current_posj[1]:.2f}, j3={current_posj[2]:.2f}, j4={current_posj[3]:.2f}, j5={current_posj[4]:.2f}, j6={current_posj[5]:.2f} \n")
 
     # ------------------------------------------------------------
     # gripper 동작
@@ -242,10 +242,12 @@ class ManipulatorTest2:
 
         self.node.get_logger().info("[SCRAPER 1/3] 홈으로 이동")
         movej(posj(*HOME), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         self.release()
 
         self.node.get_logger().info("[SCRAPER 2/3] 스크래퍼 거치대로 이동 후 잡기")
         movej(posj(*TOOL_STAND_SCRAPER), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         self.grip()
 
         set_tcp(TCP_WITH_SCRAPER)
@@ -260,6 +262,8 @@ class ManipulatorTest2:
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
+        self.log_current_pos()
+
         movel(
             posx(-150, 0, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
@@ -267,6 +271,8 @@ class ManipulatorTest2:
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
+        self.log_current_pos()
+
         movel(
             posx(0, -400, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
@@ -274,7 +280,11 @@ class ManipulatorTest2:
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
+        self.log_current_pos()
+
         movej(posj(*DISPENSING_POINT), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
+
         movel(
             posx(-100, 0, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
@@ -282,27 +292,34 @@ class ManipulatorTest2:
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
+        self.log_current_pos()
 
     # ------------------------------------------------------------
     # 2단계: 스크래퍼에 담긴 약을 봉투에 붓고 스크래퍼 반납
     # ------------------------------------------------------------
     def pour_and_return_scraper(self):
         movej(posj(*POUCH_POS_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         self.node.get_logger().info("[POUR 1/3] 봉투 위치 위로 이동")
         movej(posj(*POUCH_POS_ABOVE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
 
         self.node.get_logger().info("[POUR 2/3] 봉투에 약 붓기")
         movej(posj(*POUCH_POS), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         sleep(0.5)
 
         self.node.get_logger().info("[POUR 3/3] 스크래퍼 거치대로 복귀 및 반납")
         movej(posj(*SCRAPER_RETURN_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         sleep(0.5)
 
         movej(posj(*SCRAPER_RETURN_MIDDLE_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         sleep(0.5)
 
         movej(posj(*SCRAPER_RETURN_STAND), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         self.release() # 스크래퍼 놔주기
 
         # 거치대에 내려놓고 X 만큼 뒤로 빠진 후 home 으로 이동 할게요 해벽님~~~ 감사~~
@@ -313,10 +330,13 @@ class ManipulatorTest2:
             v=SCRAPER_LINEAR_V,
             a=SCRAPER_LINEAR_A,
         )
+        self.log_current_pos()
+
         set_tcp(TCP_GRIPPER_ONLY)
         self.node.get_logger().info(f"TCP 전환: {TCP_GRIPPER_ONLY}")
         self.node.get_logger().info("스크래퍼 작업 종료.")
         movej(posj(*HOME), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        self.log_current_pos()
         self.grip()
 
     # ------------------------------------------------------------
