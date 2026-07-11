@@ -52,7 +52,7 @@ POUCH_POS_ABOVE = [10.31, 25.37, 85.48, 131.18, -83.59, -64.88]
 POUCH_POS = [-11.49, 20.27, 77.08, 159.48, -76.69, -97.15]
 SCRAPER_RETURN_MIDDLE = [14.69, -0.88, 91.28, 179.97, -89.60, -73.89]
 SCRAPER_RETURN_MIDDLE_MIDDLE = [14.83, 4.70, 57.95, 179.95, -117.35, -73.88]
-SCRAPER_RETURN_STAND = [16.36, 12.25, 99.06, 169.71, -36.23, -159.68] # 여기서 놓는거로 함 나중에 수정할 수도 
+SCRAPER_RETURN_STAND = [16.36, 12.25, 99.06, 169.71, -36.23, -159.68] 
 
 
 
@@ -60,6 +60,20 @@ class ManipulatorTest2:
     def __init__(self, node):
         self.node = node
         self.task_done_pub = node.create_publisher(Bool, "task_done", 10)
+    
+
+    # ------------------------------------------------------------
+    # log_current_pos 동작
+    # ------------------------------------------------------------
+
+    def log_current_pos(self) :
+        current_posx, _ = get_current_posx(ref=DR_BASE)
+        current_posj = get_current_posj()
+        x = current_posx[0]
+        y = current_posx[1]
+        z = current_posx[2]
+        self.node.get_logger().info(f"좌표 확인: x={x:.2f}, y={y:.2f}, z={z:.2f}")
+        self.node.get_logger().info(f"좌표 확인(joint): j1={current_posj[0]:.2f}, j2={current_posj[1]:.2f}, j3={current_posj[2]:.2f}, j4={current_posj[3]:.2f}, j5={current_posj[4]:.2f}, j6={current_posj[5]:.2f}")
 
     # ------------------------------------------------------------
     # gripper 동작
@@ -92,20 +106,24 @@ class ManipulatorTest2:
 
         self.node.get_logger().info("[PAPER 1/6] 홈으로 이동")
         movej(posj(*HOME), vel=PAPER_VELOCITY, acc=PAPER_ACC)
+
+        self.log_current_pos()
         wait(0.5)
 
         
         self.node.get_logger().info("[PAPER 2/6] 봉투 위로 이동")
         movej(posj(*PAPER_BAG_ABOVE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
+        self.log_current_pos()
         wait(0.5)
         movej(posj(*PAPER_BAG_GRIP_MIDDLE), vel=PAPER_VELOCITY, acc=PAPER_ACC)
         wait(0.5)
 
         self.node.get_logger().info("[PAPER 3/6] 봉투 위치로 내려가서 잡기")
         movej(posj(*PAPER_BAG_GRIP), vel=PAPER_VELOCITY, acc=PAPER_ACC)
+        self.log_current_pos()
         self.grip()
 
-        self.node.get_logger().info("[PAPER 4/6] 봉투를 아래로 살짝 빼기")
+        self.node.get_logger().info("[PAPER 4/6] 봉투를 아래로 살짝 빼고 옆으로 가기")
         wait(0.5)
         movel(
             posx(0, 0, -100, 0, 0, 0),
@@ -114,6 +132,7 @@ class ManipulatorTest2:
             v=50,
             a=50,
         )
+        self.log_current_pos()
 
         amovel(
             posx(0, -100, 0, 0, 0, 0),
@@ -123,6 +142,7 @@ class ManipulatorTest2:
             a=50,
         )
 
+
         movel(
             posx(-300, 0, 0, 0, 0, 0),
             mod=DR_MV_MOD_REL,
@@ -130,6 +150,7 @@ class ManipulatorTest2:
             v=50,
             a=50,
         )
+        self.log_current_pos()
 
 
         self.node.get_logger().info("[PAPER 5/6] 봉투를 위로 들어 올리기")
@@ -141,6 +162,7 @@ class ManipulatorTest2:
             v=50,
             a=50,
         )
+        self.log_current_pos()
 
         self.node.get_logger().info("[PAPER 6/6] 수납대 위로 이동")
         wait(0.5)
@@ -151,6 +173,7 @@ class ManipulatorTest2:
             v=100,
             a=50,
         )
+        self.log_current_pos()
 
         wait(0.5)
         movel(
@@ -320,7 +343,7 @@ class ManipulatorTest2:
 
 def main(args=None):
     global movej, movel, amovel, set_tool, set_tcp
-    global set_digital_output, get_current_posx
+    global set_digital_output, get_current_posx, get_current_posj
     global DR_BASE, DR_MV_MOD_REL
     global posj, posx
     global wait
@@ -338,6 +361,7 @@ def main(args=None):
             set_tcp,
             set_digital_output,
             get_current_posx,
+            get_current_posj,
             DR_BASE,
             DR_MV_MOD_REL,
             wait,
