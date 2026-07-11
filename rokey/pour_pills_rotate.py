@@ -29,7 +29,8 @@ DONE_URL = "http://172.23.0.129:8000/api/tasks/refill/"
 # 현재 활성 TCP 원점에서 약병 끝점까지의 로컬 좌표 [mm]
 # TCP +Y 방향 22.5 mm, TCP +Z 방향 25.0 mm
 # 거치대 끝 [0.0, 29, 10]
-BOTTLE_TIP_OFFSET_TCP = [0.0, 25, -42]
+# 테스트용 실제에서는 db에서 받아올 거임
+# BOTTLE_TIP_OFFSET_TCP = [0.0, 25, -42]
 
 # 현재 TCP의 로컬 X축을 중심으로 회전
 
@@ -106,6 +107,13 @@ class PourPills:
         self.dispensing_rx = None
         self.dispensing_ry = None
         self.dispensing_rz = None
+
+        # --------------------------------------------------
+        # 약통 tcp (Tool_v1 기준)
+        # --------------------------------------------------
+        self.tcp_x = None
+        self.tcp_y = None
+        self.tcp_z = None
 
         # --------------------------------------------------
         # 서랍 위치
@@ -215,6 +223,10 @@ class PourPills:
             "dispensing_ry",
             "dispensing_rz",
 
+            "bottle_tip_offset_x",
+            "bottle_tip_offset_y",
+            "bottle_tip_offset_z",
+
             "drawer_x",
             "drawer_y",
             "drawer_z",
@@ -282,7 +294,7 @@ class PourPills:
             self.dispensing_rz,
         )
 
-        self.X_DRAWER = self.posx(
+        self.X_DRAWER = self.posj(
             self.drawer_x,
             self.drawer_y,
             self.drawer_z,
@@ -290,6 +302,12 @@ class PourPills:
             self.drawer_ry,
             self.drawer_rz,
         )
+
+        self.bottle_tip_offset_tcp = [
+        float(task["bottle_tip_offset_x"]),
+        float(task["bottle_tip_offset_y"]),
+        float(task["bottle_tip_offset_z"]),
+    ]
 
         self.get_logger().info(
             f"현재 작업 설정 완료: "
@@ -460,6 +478,7 @@ class PourPills:
     # 6. 도구 위치로 이동
     # --------------------------------------------------
     def go_to_tool(self):
+        # 나중에 코드 합치고 나서는 없어질 예정 단독 테스트 용으로 놔둠 
         self.X_LOCK_RETURN = self.posj(-0.14, 30.09, 77.46, -0.33, 73.14, -7.15)
 
         if self.X_LOCK_RETURN is None:
@@ -467,17 +486,39 @@ class PourPills:
                 "X_LOCK_RETURN 좌표가 설정되지 않음"
             )
 
-        self.movej(
-            self.X_LOCK_RETURN,
-            vel=self.vel,
-            acc=self.acc
-        )
+        self.movej(self.X_LOCK_RETURN, vel=self.vel, acc=self.acc)
+        # # 나중에 코드 합치고 나서는 movejx 쓸거임 
+        # self.movejx(self.X_LOCK_RETURN, vel=self.vel, acc=self.acc, sol=2)
 
         self.movej(
             self.posj(-0.30, 29.88, 77.79, -0.05, 72.95, 13.42),
             vel=self.vel,
             acc=self.acc
         )
+        # 혜승님 코드 베껴서 몇도돌릴지 보고 movel로 바꾸기 
+
+        sleep(0.5)
+
+        start_pose = self.get_current_pos_base()
+        start_z = start_pose[2]
+
+        max_lift_distance = 22.0
+        
+        try:
+            self.task_compliance_ctrl([10000, 10000, 500, 300, 300, 300])
+            self.set_desired_force(fd=[0,0,30,0,0,0], dir=[0,0,1,0,0,0])
+            
+            while True:
+                current_pose = self.get_current_pos_base()
+                current_z = current_pose[2]
+                lifted_distance = current_z - start_z
+                if lifted_distance >= max_lift_distance:
+                    self.get_logger().info("다 올라옴 그만")
+                    break
+        
+        finally:
+            self.release_force()
+            self.release_compliance_ctrl()
 
     # --------------------------------------------------
     # 7. 조제기로 이동
@@ -727,7 +768,7 @@ class PourPills:
         start_rotation = self._zyz_to_rotation_matrix(*start_abc)
         tip_offset_base = self._matvec_3x3(
             start_rotation,
-            BOTTLE_TIP_OFFSET_TCP,
+            self.bottle_tip_offset_tcp,
         )
         tip_position_base = [
             start_position[i] + tip_offset_base[i]

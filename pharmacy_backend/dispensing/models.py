@@ -20,6 +20,11 @@ class Medicine(models.Model):
     dispensing_ry = models.FloatField(default=0.0)
     dispensing_rz = models.FloatField(default=0.0)
 
+    # 약통 끝점 offset
+    bottle_tip_offset_x = models.FloatField(default=0.0)
+    bottle_tip_offset_y = models.FloatField(default=0.0)
+    bottle_tip_offset_z = models.FloatField(default=0.0)
+
     # 조제기 서랍 열기 위치
     drawer_x = models.FloatField(default=0.0)
     drawer_y = models.FloatField(default=0.0)
