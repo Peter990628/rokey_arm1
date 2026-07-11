@@ -10,6 +10,7 @@ VELOCITY, ACC = 60, 60
 DR_init.__dsr__id = ROBOT_ID
 DR_init.__dsr__model = ROBOT_MODEL
 
+
 ON, OFF = 1, 0
 
 class StorageGraspTester:
