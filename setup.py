@@ -24,9 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'move = rokey.move:main',
-            'grip_test = rokey.grip_test:main',
-            'gear = rokey.gear:main'
-        ],
-    },
-)
+            'pour_pills_rotate = rokey.pour_pills_rotate:main',
+            'test1 = rokey.test1:main',
+            ],
+        },
+    )
