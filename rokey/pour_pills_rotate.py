@@ -273,7 +273,7 @@ class PourPills:
                 "storage_stock이 0 이하라 리필할 수 없음"
             )
 
-        self.X_DISPENSER_POS = self.posx(
+        self.X_DISPENSER_POS = self.posj(
             self.dispensing_x,
             self.dispensing_y,
             self.dispensing_z,
@@ -380,7 +380,7 @@ class PourPills:
         sleep(1)
 
     # --------------------------------------------------
-    # 5. 서랍 열기
+    # 5. 서랍 열기 유후
     # --------------------------------------------------
     def open_drawer(self):
         if self.X_DRAWER is None:
@@ -647,7 +647,6 @@ class PourPills:
     def _get_current_pose_zyz(self):
         current_result = self.get_current_posx(
             ref=self.DR_BASE,
-            ori_type=self.DR_ELR_ZYZ,
         )
 
         if current_result is None:
