@@ -193,6 +193,44 @@ class SpinLidTester:
 
         #     sleep(0.02)
 
+    def pull_fix_lid(self):
+        self.node.get_logger().info("=== 단위 테스트 시작: 당겨서 여는 약통 거치대 고정 ===")     
+
+        # self.set_tcp('Tool_pill')
+        # self.wait(3.5)
+        # self.node.get_logger().info("TCP 변경 완료")
+        
+        self.node.get_logger().info("1. 약통 거치대 force 시작 위치의 상공으로 이동")
+        self.movejx(self.X_PULL_FIX_ABOVE, vel=30, acc=30, ref=self.DR_BASE, sol=2)
+        self.wait(1)
+
+        self.node.get_logger().info("2. 약통 거치대 force 시작 위치로 이동")
+        self.movejx(self.X_PULL_FIX, vel=5, acc=5, ref=self.DR_BASE, sol=2)
+        self.wait(0.5)
+
+        self.node.get_logger().info("3. 거치대 소켓에 가압 삽입 (pull_down)")
+        self.pull_down()
+        self.wait(0.5)
+
+        self.node.get_logger().info("4. 반시계 방향 회전하여 락킹 (lock)")
+        self.lock()
+        self.wait(0.5)
+
+        # self.log_current_pos()
+
+        # 현재 위치 실측 저장 
+        self.X_LOCK_RETURN = self.get_current_posx(ref=self.DR_BASE)[0]
+        self.node.get_logger().info(f"동적 좌표 저장 완료: {self.X_LOCK_RETURN}")
+
+        self.node.get_logger().info("4. 그리퍼 해제 후 수직 안전 탈출")
+        self.release()
+
+        self.movel(self.posx(0, 0, 100, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+
+        # self.log_current_pos()
+        
+        self.node.get_logger().info("=== 단위 테스트 완료 2 ===")
+
     def spin_open(self):
         
         # Z축 방향 순응 제어 활성화
@@ -281,8 +319,8 @@ def main(args=None):
         tester.init_robot()
         tester.storage_grasp()
         # tester.set_tcp('Tool_pill')
-        tester.pull_fix_lid()
-        tester.pull_lid()
+        # tester.spin_fix_lid()
+        tester.spin_lid()
 
         
     except KeyboardInterrupt:
