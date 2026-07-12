@@ -28,6 +28,11 @@ class MedicineSerializer(serializers.ModelSerializer):
             "dispensing_ry",
             "dispensing_rz",
 
+            "bottle_tip_offset_x",
+            "bottle_tip_offset_y",
+            "bottle_tip_offset_z",
+
+
             "drawer_x",
             "drawer_y",
             "drawer_z",

@@ -31,6 +31,8 @@ setup(
             'paper_bag_test = rokey.drug_peter.paper_bag_test:main',
             'task_manager_bridge = rokey.drug_peter.task_manager_bridge:main',
             'manipulator_test_2 = rokey.manipulator_test_2:main',
+            'pour_pills_rotate = rokey.pour_pills_rotate:main',
+            'test1 = rokey.test1:main',
         ],
     },
 )

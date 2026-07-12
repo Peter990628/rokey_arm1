@@ -179,37 +179,40 @@ class NextTaskAPIView(APIView):
             items.append({
                 "medicine_number": medicine.id,
                 "medicine_name": medicine.medicine_name,
+
                 "quantity": item.quantity,
                 "order": item.order,
                 "item_status": item.status,
-                "storage_pose": {
-                    "x": medicine.storage_x,
-                    "y": medicine.storage_y,
-                    "z": medicine.storage_z,
-                    "rx": medicine.storage_rx,
-                    "ry": medicine.storage_ry,
-                    "rz": medicine.storage_rz,
-                },
+                "refill_needed": item.status == "REFILL_REQUIRED",
 
-                "dispensing_pose": {
-                    "x": medicine.dispensing_x,
-                    "y": medicine.dispensing_y,
-                    "z": medicine.dispensing_z,
-                    "rx": medicine.dispensing_rx,
-                    "ry": medicine.dispensing_ry,
-                    "rz": medicine.dispensing_rz,
-                },
-                "drawer_pose": {
-                    "x": medicine.drawer_x,
-                    "y": medicine.drawer_y,
-                    "z": medicine.drawer_z,
-                    "rx": medicine.drawer_rx,
-                    "ry": medicine.drawer_ry,
-                    "rz": medicine.drawer_rz,
-                },
+                "storage_x": medicine.storage_x,
+                "storage_y": medicine.storage_y,
+                "storage_z": medicine.storage_z,
+                "storage_rx": medicine.storage_rx,
+                "storage_ry": medicine.storage_ry,
+                "storage_rz": medicine.storage_rz,
+
+                "dispensing_x": medicine.dispensing_x,
+                "dispensing_y": medicine.dispensing_y,
+                "dispensing_z": medicine.dispensing_z,
+                "dispensing_rx": medicine.dispensing_rx,
+                "dispensing_ry": medicine.dispensing_ry,
+                "dispensing_rz": medicine.dispensing_rz,
+
+                "bottle_tip_offset_x": medicine.bottle_tip_offset_x,
+                "bottle_tip_offset_y": medicine.bottle_tip_offset_y,
+                "bottle_tip_offset_z": medicine.bottle_tip_offset_z,
+
+                "drawer_x": medicine.drawer_x,
+                "drawer_y": medicine.drawer_y,
+                "drawer_z": medicine.drawer_z,
+                "drawer_rx": medicine.drawer_rx,
+                "drawer_ry": medicine.drawer_ry,
+                "drawer_rz": medicine.drawer_rz,
+
                 "lid_type": medicine.lid_type,
                 "storage_stock": medicine.storage_stock,
-                "dispensing_stock": medicine.dispensing_stock
+                "dispensing_stock": medicine.dispensing_stock,
             })
 
         return Response(
