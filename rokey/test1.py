@@ -20,8 +20,15 @@ OFF = 0
 # 1=탁센, 2=타이레놀, 3=별사탕
 TEST_MEDICINE_NUMBER = 3
 
-# 약통을 잡은 뒤 DR_BASE +Z 방향으로 들어 올릴 거리 [mm]
-MEDICINE_LIFT_DISTANCE = 50.0
+# 힘제어로 약통을 DR_BASE +Z 방향으로 들어 올릴 목표 거리 [mm]
+# pour_pills_rotate의 go_to_tool()과 동일한 값
+MEDICINE_LIFT_DISTANCE = 40.0
+
+# 순응제어/힘제어 설정
+COMPLIANCE_STX = [10000, 10000, 700, 300, 300, 300]
+DESIRED_FORCE = [0, 0, 50, 0, 0, 0]
+FORCE_DIRECTION = [0, 0, 1, 0, 0, 0]
+FORCE_CHECK_INTERVAL_SEC = 0.05
 
 # 약 붓기 설정: 현재 TCP의 로컬 X축을 중심으로 회전
 POUR_TOTAL_ANGLE_DEG = 60.0
@@ -98,8 +105,8 @@ TEST_TASKS = {
         "dispensing_ry": 62.80,
         "dispensing_rz": -132.18,
         "bottle_tip_offset_x": 0.0,
-        "bottle_tip_offset_y": 0.0,
-        "bottle_tip_offset_z": 0.0,
+        "bottle_tip_offset_y": 25.0,
+        "bottle_tip_offset_z": -42.0,
         "drawer_x": -38.18,
         "drawer_y": 18.52,
         "drawer_z": 99.15,
@@ -132,10 +139,15 @@ class PourPills:
         self.movel = dsr_functions["movel"]
         self.movej = dsr_functions["movej"]
         self.movejx = dsr_functions["movejx"]
+        self.task_compliance_ctrl = dsr_functions["task_compliance_ctrl"]
+        self.set_desired_force = dsr_functions["set_desired_force"]
         self.get_current_posx = dsr_functions["get_current_posx"]
+        self.release_force = dsr_functions["release_force"]
+        self.release_compliance_ctrl = dsr_functions["release_compliance_ctrl"]
 
         self.DR_BASE = dsr_constants["DR_BASE"]
         self.DR_MV_MOD_REL = dsr_constants["DR_MV_MOD_REL"]
+        self.DR_FC_MOD_REL = dsr_constants["DR_FC_MOD_REL"]  
 
         self.posx = posx
         self.posj = posj
@@ -391,6 +403,12 @@ class PourPills:
             raise RuntimeError("서랍 열기 위치가 설정되지 않음")
 
         self.get_logger().info("서랍 열기 시작")
+        self.movej(
+            self.posj(-42.63,-0.65,99.42,-1.37,81.22,7.57),
+            vel=20,
+            acc=20,
+        
+        )
 
         # Joint 위치로 이동
         self.movej(
@@ -440,11 +458,10 @@ class PourPills:
             f"rz={rz:.2f}"
         )
 
-        self.movel(
-            self.posx(0,-40,0,0,0,0),
-            vel=10,
-            acc=10,
-            mod=DR_MV_MOD_REL
+        self.movej(
+            self.posj(-42.63,-0.65,99.42,-1.37,81.22,7.57),
+            vel=20,
+            acc=20,
         
         )
 
@@ -480,35 +497,94 @@ class PourPills:
 
         # 약통 잡기
         self.grip()
+        sleep(0.5)
 
-        # 약통을 잡은 채 DR_BASE +Z 방향으로 들어 올리기
-        self.get_logger().info(
-            f"약통을 DR_BASE +Z 방향으로 "
-            f"{MEDICINE_LIFT_DISTANCE:.1f} mm 들어 올림"
-        )
-        self.movel(self.posx(0,0,0,0,0,-17), vel=5, acc=5, mod=self.DR_MV_MOD_REL)
-        
+        # 실제 프로젝트 코드와 동일하게 약통 자세를 먼저 조정
         self.movel(
-            self.posx(
-                0,
-                0,
-                MEDICINE_LIFT_DISTANCE,
-                0,
-                0,
-                0,
-            ),
-            vel=10,
-            acc=10,
+            self.posx(0, 0, 0, 0, 0, -17),
+            vel=5,
+            acc=5,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
+        sleep(0.5)
+        # 고정 거리 movel 대신 순응제어 + 힘제어로 약통 들어 올리기
+        self.lift_medicine_with_force()
 
         current_pos = self.get_current_pos_base()
 
         self.get_logger().info(
-            f"{self.medicine_name} 약통 집기 및 상승 완료: "
+            f"{self.medicine_name} 약통 집기 및 힘제어 상승 완료: "
             f"current_pos={[round(value, 2) for value in current_pos]}"
         )
+
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
+
+
+
+    # --------------------------------------------------
+    # 실제 프로젝트 코드와 동일한 순응제어 + 힘제어 상승
+    # --------------------------------------------------
+    def lift_medicine_with_force(self):
+        start_pose = self.get_current_pos_base()
+        start_z = start_pose[2]
+
+        self.get_logger().info(
+            "약통 힘제어 상승 시작: "
+            f"start_z={start_z:.2f} mm, "
+            f"target={MEDICINE_LIFT_DISTANCE:.1f} mm, "
+            f"force_z={DESIRED_FORCE[2]} N"
+        )
+
+        compliance_started = False
+        force_started = False
+
+        try:
+            self.task_compliance_ctrl(COMPLIANCE_STX)
+            compliance_started = True
+
+            self.set_desired_force(
+                fd=DESIRED_FORCE,
+                dir=FORCE_DIRECTION,
+                mod=self.DR_FC_MOD_REL
+            )
+            force_started = True
+
+            while rclpy.ok():
+                current_pose = self.get_current_pos_base()
+                current_z = current_pose[2]
+                lifted_distance = current_z - start_z
+
+                self.get_logger().info(
+                    "힘제어 상승 중: "
+                    f"current_z={current_z:.2f} mm, "
+                    f"lifted={lifted_distance:.2f} mm"
+                )
+
+                if lifted_distance >= MEDICINE_LIFT_DISTANCE:
+                    self.get_logger().info(
+                        "목표 상승 거리 도달. 힘제어를 종료함"
+                    )
+                    break
+
+                sleep(FORCE_CHECK_INTERVAL_SEC)
+
+            if not rclpy.ok():
+                raise RuntimeError(
+                    "ROS2 종료로 약통 힘제어 상승이 중단됨"
+                )
+
+        finally:
+            # 힘제어를 먼저 해제하고, 그 다음 순응제어를 해제
+            if force_started:
+                self.release_force()
+
+            if compliance_started:
+                self.release_compliance_ctrl()
+
+        self.get_logger().info("약통 힘제어 상승 완료")
+
+    
 
     # --------------------------------------------------
     # 약통을 든 상태에서 조제기(붓기 시작 Joint)로 이동
@@ -787,6 +863,8 @@ class PourPills:
 
         self.get_logger().info("약 붓기 완료")
 
+        self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=DR_MV_MOD_REL)
+
     # --------------------------------------------------
     # 약 붓기 다음 단계: 빈 약통을 쓰레기통에 버림
     # 전체 코드의 move_trash()와 동일한 방식
@@ -865,9 +943,14 @@ def main(args=None):
             movel,
             movej,
             movejx,
+            task_compliance_ctrl,
+            set_desired_force,
             get_current_posx,
+            release_force,
+            release_compliance_ctrl,
             DR_BASE,
             DR_MV_MOD_REL,
+            DR_FC_MOD_REL
         )
         from DR_common2 import posx, posj
 
@@ -878,12 +961,17 @@ def main(args=None):
             "movel": movel,
             "movej": movej,
             "movejx": movejx,
+            "task_compliance_ctrl": task_compliance_ctrl,
+            "set_desired_force": set_desired_force,
             "get_current_posx": get_current_posx,
+            "release_force": release_force,
+            "release_compliance_ctrl": release_compliance_ctrl,
         }
 
         dsr_constants = {
             "DR_BASE": DR_BASE,
             "DR_MV_MOD_REL": DR_MV_MOD_REL,
+            "DR_FC_MOD_REL": DR_FC_MOD_REL,
         }
 
         robot = PourPills(
