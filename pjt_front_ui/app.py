@@ -95,6 +95,8 @@ socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 # ---------------------------------------------------------------
 DB_API_BASE_URL = "http://172.23.0.128:8000"  # 실제 DB 서버 주소로 교체 완료
 MEDICINE_ENDPOINT = f"{DB_API_BASE_URL}/api/medicine/"
+DEFAULT_LOW_STOCK_THRESHOLD = 5
+
 EVENTS_ENDPOINT = f"{DB_API_BASE_URL}/api/events/"                 # 조회는 여기 (GET)
 PRESCRIPTIONS_CREATE_ENDPOINT = f"{DB_API_BASE_URL}/api/prescriptions/"  # 등록은 여기 (POST 전용)
 TASK_STATUS_ENDPOINT = f"{DB_API_BASE_URL}/api/tasks/status/"
@@ -164,14 +166,14 @@ def get_inventory():
 
     result = []
     for m in raw:
-        if "id" not in m or "medicine_name" not in m:
+        if "medicine_number" not in m or "medicine_name" not in m:
             print(f"[WARN] 필수 필드 누락, 이 항목 스킵: {m}")
             continue
         result.append({
-            "med_id": m["id"],
+            "med_id": m["medicine_number"],
             "name": m["medicine_name"],
             "count": m.get("storage_stock", 0),
-            "threshold": m.get("min_stock", 5),
+            "threshold": DEFAULT_LOW_STOCK_THRESHOLD,
         })
     return result
 
