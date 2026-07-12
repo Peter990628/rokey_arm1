@@ -1,3 +1,6 @@
+# 약품 리필 동작 전체 흐름을 실제 로봇으로 시험하는 통합 테스트 코드
+# by syc
+
 import math
 from time import sleep
 
@@ -26,7 +29,7 @@ MEDICINE_LIFT_DISTANCE = 40.0
 
 # 순응제어/힘제어 설정
 COMPLIANCE_STX = [10000, 10000, 700, 300, 300, 300]
-DESIRED_FORCE = [0, 0, 50, 0, 0, 0]
+DESIRED_FORCE = [0, 0, 40, 0, 0, 0]
 FORCE_DIRECTION = [0, 0, 1, 0, 0, 0]
 FORCE_CHECK_INTERVAL_SEC = 0.05
 
@@ -132,7 +135,7 @@ class PourPills:
         posj,
     ):
         self.node = node
-
+        self.wait = dsr_functions["wait"]
         self.set_digital_output = dsr_functions["set_digital_output"]
         self.set_tool = dsr_functions["set_tool"]
         self.set_tcp = dsr_functions["set_tcp"]
@@ -326,8 +329,8 @@ class PourPills:
         self.get_logger().info("로봇 초기 세팅 시작")
 
         # 실제 전체 코드에서 Tool/TCP를 적용할 경우 동일하게 주석 해제
-        # self.set_tool(TOOL_NAME)
-        # self.set_tcp(TCP_NAME)
+        self.set_tool(TOOL_NAME)
+        self.set_tcp(TCP_NAME)
 
         self.release()
 
@@ -520,6 +523,9 @@ class PourPills:
 
         self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
 
+        # ---------------------------------------------약 부으러 가기 전 기울이기------------------
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
+
 
 
     # --------------------------------------------------
@@ -540,14 +546,16 @@ class PourPills:
         force_started = False
 
         try:
-            self.task_compliance_ctrl(COMPLIANCE_STX)
+            self.task_compliance_ctrl(stx = COMPLIANCE_STX)
             compliance_started = True
+            self.wait(0.5)
 
             self.set_desired_force(
                 fd=DESIRED_FORCE,
                 dir=FORCE_DIRECTION,
                 mod=self.DR_FC_MOD_REL
             )
+            self.wait(0.5)
             force_started = True
 
             while rclpy.ok():
@@ -863,7 +871,7 @@ class PourPills:
 
         self.get_logger().info("약 붓기 완료")
 
-        self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=DR_MV_MOD_REL)
+        self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=self.DR_MV_MOD_REL)
 
     # --------------------------------------------------
     # 약 붓기 다음 단계: 빈 약통을 쓰레기통에 버림
@@ -950,7 +958,8 @@ def main(args=None):
             release_compliance_ctrl,
             DR_BASE,
             DR_MV_MOD_REL,
-            DR_FC_MOD_REL
+            DR_FC_MOD_REL,
+            wait,
         )
         from DR_common2 import posx, posj
 
@@ -966,6 +975,7 @@ def main(args=None):
             "get_current_posx": get_current_posx,
             "release_force": release_force,
             "release_compliance_ctrl": release_compliance_ctrl,
+            "wait" : wait,
         }
 
         dsr_constants = {

@@ -29,7 +29,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'go_home = rokey.drug_peter.go_home:main',
+            
             'task_manager_bridge = rokey.task_manager_bridge:main',
             'manipulator_test_2 = rokey.manipulator_test_2:main',
             'pour_pills_rotate = rokey.pour_pills_rotate:main',
@@ -37,6 +37,7 @@ setup(
             'test_storage_grasp = rokey.test_storage_grasp:main',
             'test_tcp = rokey.test_tcp:main',
             'go_home = rokey.go_home:main',
+            'test1 = rokey.test1:main',
         ],
     },
 )
