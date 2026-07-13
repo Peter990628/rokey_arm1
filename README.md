@@ -14,7 +14,7 @@
 
 ### 1-2. 플로우 차트 (Flow Chart)
 <p align="center">
- <img width="1531" height="2031" alt="협동1_플로우차트 drawio" src="https://github.com/user-attachments/assets/9911ac31-30d6-4b11-8999-f204dddd4891" />
+ <img width="1531" height="2031" alt="협동1_플로우차트" src="https://github.com/user-attachments/assets/9dffe982-0576-4049-88eb-5fdefcf9f6e8" />
 </p>
 * *설명: [UI부터 전체 프로세스 진행도를 나타냅니다.]*
 
