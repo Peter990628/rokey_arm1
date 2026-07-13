@@ -74,6 +74,7 @@
 <img width="894" height="665" alt="스크린샷 2026-07-13 17-17-45" src="https://github.com/user-attachments/assets/9b5aa929-602f-4e30-9a34-23a4cf961427" />
 </p>
 * *설명: [지도를 나타냅니다..]*
+
 ---
 
 ## 4. 📦 의존성 (Dependencies)
