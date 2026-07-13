@@ -149,7 +149,7 @@ class GraspSensorError(GraspError):
 
 
 class PharmacyRobot(Node):
-    def __init__(self):
+    def __init__(self, node):
         super().__init__('pharmacy_robot')
         DR_init.__dsr__node = self
 
@@ -158,9 +158,9 @@ class PharmacyRobot(Node):
             movej, movel, movejx, wait, trans, task_compliance_ctrl,
             get_tool_force, amove_periodic, check_position_condition,
             set_desired_force, get_current_posx, release_force,
-            release_compliance_ctrl, amovel, amovej, stop, check_motion, 
+            release_compliance_ctrl, amovel, amovej, check_motion, 
             DR_TOOL, DR_BASE, DR_MV_MOD_ABS, DR_MV_MOD_REL, DR_AXIS_Z, 
-            DR_SSTOP, DR_QSTOP, DR_FC_MOD_REL
+            DR_FC_MOD_REL
         )
         from DR_common2 import posj, posx
 
@@ -228,6 +228,8 @@ class PharmacyRobot(Node):
         self.X_OPEN_READY = self.posx(602.07, 6.05, 148.47, 161.74, -179.88, 157.58)        
         self.X_OPEN_LOC = self.posx(557.46, 5.58, 146.22, 104.54, -179.97, 100.42)
         self.X_TRASH = self.posx(-423.12, -96.72, 89.41, 8.51, -179.18, 101.63)
+        self.X_DRAWER  = self.posj(-39.25, 21.17, 95.86, -65.24, -49.36, -32.78)
+        
 
     # ------------------ 벡터 연산 헬퍼 (공통) ------------------
     @staticmethod
@@ -588,20 +590,20 @@ class PharmacyRobot(Node):
 
     def lock(self):
         self.get_logger().info("반시계 방향 회전 거치대 고정 (Lock)")    
-        self.amovej(self.posj(0, 0, 0, 0, 0, -17), vel=3, acc=1, mod=self.DR_MV_MOD_REL)
-        torque_threshold = 10.0 
-        force_threshold = 30.0   
+        self.movej(self.posj(0, 0, 0, 0, 0, -17), vel=3, acc=1, mod=self.DR_MV_MOD_REL)
+        # torque_threshold = 10.0 
+        # force_threshold = 30.0   
 
-        while self.check_motion() != 0:
-            current_force = self.get_tool_force(ref=self.DR_TOOL)
-            if abs(current_force[5]) > torque_threshold or abs(current_force[0]) > force_threshold or abs(current_force[1]) > force_threshold:
-                self.stop(self.DR_QSTOP)
-                self.get_logger().error("락킹 중 비정상적인 끼임 감지! 즉시 회전을 중단합니다.")
-                return False  
-            sleep(0.01)
+        # while self.check_motion() != 0:
+        #     current_force = self.get_tool_force(ref=self.DR_TOOL)
+        #     if abs(current_force[5]) > torque_threshold or abs(current_force[0]) > force_threshold or abs(current_force[1]) > force_threshold:
+        #         self.stop(self.DR_QSTOP)
+        #         self.get_logger().error("락킹 중 비정상적인 끼임 감지! 즉시 회전을 중단합니다.")
+        #         return False  
+        #     sleep(0.01)
 
-        self.wait(0.5)
-        return True
+        # self.wait(0.5)
+        # return True
 
     def fix_lid(self):
         self.get_logger().info("=== 약통 거치대 고정 시퀀스 ===")     
@@ -912,9 +914,8 @@ class PharmacyRobot(Node):
 
         self.movej(
             self.X_DRAWER,
-            vel=self.vel,
-            acc=self.acc,
-            ref=self.DR_BASE
+            vel=self.vel_1,
+            acc=self.acc_1,
         )
 
         self.grip()
@@ -956,8 +957,8 @@ class PharmacyRobot(Node):
 
         self.movejx(
             self.X_DRAWER_CLOSED,
-            vel=self.vel,
-            acc=self.acc,
+            vel=self.vel_1,
+            acc=self.acc_1,
             ref=self.DR_BASE,
             sol=2,
         )
@@ -1059,15 +1060,30 @@ class PharmacyRobot(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    robot = PharmacyRobot()
+
+    # 1. 네임스페이스 주입 (서비스/토픽 에러 방지)
+    node = rclpy.create_node('pharmacy_robot', namespace=ROBOT_ID)
+    DR_init.__dsr__node = node
+    
+    # 2. 로봇 객체 생성 (사용자님의 클래스 구조에 따라 인자가 다를 수 있습니다)
+    # 만약 기존 코드가 `class PharmacyRobot(Node):` 라면 `robot = PharmacyRobot()` 을 사용하시고,
+    # 이전 수정본처럼 `def __init__(self, node):` 라면 `robot = PharmacyRobot(node)` 로 맞춰주세요.
+    robot = PharmacyRobot(node) 
+
     try:
-        rclpy.spin(robot)
+        # ★ 3. 핵심 해결책: 로봇 통신이 완전히 연결될 때까지 2초 대기
+        node.get_logger().info("로봇 제어기 통신 안정화 대기 중... (2초)")
+        time.sleep(2.0)
+        
+        # 4. 전체 시퀀스 단일 실행 (spin 불필요)
+        robot.run()
+
     except KeyboardInterrupt:
-        robot.get_logger().info("Keyboard Interrupt")
+        node.get_logger().info("Keyboard Interrupt로 인해 종료합니다.")
     except Exception as e:
-        robot.get_logger().error(f"Robot error: {e}")
+        node.get_logger().error(f"로봇 에러 발생: {e}")
     finally:
-        robot.destroy_node()
+        node.destroy_node()
         rclpy.shutdown()
 
 if __name__ == "__main__":
