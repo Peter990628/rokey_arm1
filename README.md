@@ -40,8 +40,35 @@
 | 제조기 서랍장 | 1 | [다이소 제품] |
 | 툴 거치대 | 1 | [3D 프린팅] |
 | 스크래퍼 | 1 | [3D 프린팅] |
-| 약 병 오프너 | 1 | [3D 프린팅] |
+| 약병 오프너 | 1 | [3D 프린팅] |
+| 약병 고정틀 | 1 | [3D 프린팅] |
 | 약 적재소 | 1 | [선반] |
+<details>
+  <summary>📸 사용 장비 실제 사진 보기 (클릭하여 펼치기)</summary>
+  
+  #### Doosan M0609
+  <img width="2252" height="4000" alt="IMG_20260713_175347" src="https://github.com/user-attachments/assets/6c2c5e06-3799-4459-9d04-16c5c0604831" />
+
+  #### 그리퍼 툴
+  <img width="2252" height="4000" alt="IMG_20260713_175357" src="https://github.com/user-attachments/assets/f5e704d9-a003-4fa7-8b38-fc74972df3f4" />
+
+  #### 제조기 서랍장
+  <img width="2252" height="4000" alt="20260713_171253" src="https://github.com/user-attachments/assets/aadff99e-1969-49fa-a882-1434a668eb19" />
+
+  #### 툴 거치대
+  <img width="2252" height="4000" alt="20260713_171218" src="https://github.com/user-attachments/assets/8b37e0db-808e-4fbd-a95c-596e435f59b3" />
+  
+  #### 스크래퍼
+  <img width="2252" height="4000" alt="IMG_20260713_175222" src="https://github.com/user-attachments/assets/daa9cc56-0900-4d0b-a873-d22895193a1c" />
+  
+  #### 약병 오프너
+  <img width="2252" height="4000" alt="20260713_174941" src="https://github.com/user-attachments/assets/9b92996c-56ca-43a4-9715-9b10ef94d329" />
+
+  #### 약병 고정틀
+  <img width="4000" height="2252" alt="20260713_171234" src="https://github.com/user-attachments/assets/bc6dc640-6042-464e-9574-1cf5a15edeba" />
+
+  
+</details>
 
 <p align="center">
 <img width="894" height="665" alt="스크린샷 2026-07-13 17-17-45" src="https://github.com/user-attachments/assets/9b5aa929-602f-4e30-9a34-23a4cf961427" />
