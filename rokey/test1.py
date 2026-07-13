@@ -58,8 +58,8 @@ TEST_TASKS = {
         "dispensing_ry": 55.66,
         "dispensing_rz": -108.35,
         "bottle_tip_offset_x": 0.0,
-        "bottle_tip_offset_y": 0.0,
-        "bottle_tip_offset_z": 0.0,
+        "bottle_tip_offset_y": 24.0,
+        "bottle_tip_offset_z": -45.0,
         "drawer_x": -20.87,
         "drawer_y": 10.92,
         "drawer_z": 110.58,
@@ -83,8 +83,8 @@ TEST_TASKS = {
         "dispensing_ry": 55.52,
         "dispensing_rz": -120.31,
         "bottle_tip_offset_x": 0.0,
-        "bottle_tip_offset_y": 0.0,
-        "bottle_tip_offset_z": 0.0,
+        "bottle_tip_offset_y": 23.5,
+        "bottle_tip_offset_z": -51.0,
         "drawer_x": -29.61,
         "drawer_y": 13.50,
         "drawer_z": 104.92,
@@ -332,7 +332,7 @@ class PourPills:
         self.set_tool(TOOL_NAME)
         self.set_tcp(TCP_NAME)
 
-        self.release()
+        # self.release()
 
         self.get_logger().info("로봇 초기 세팅 완료")
 
@@ -871,7 +871,7 @@ class PourPills:
 
         self.get_logger().info("약 붓기 완료")
 
-        self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=self.DR_MV_MOD_REL)
+        # self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=self.DR_MV_MOD_REL)
 
     # --------------------------------------------------
     # 약 붓기 다음 단계: 빈 약통을 쓰레기통에 버림
@@ -919,11 +919,11 @@ class PourPills:
         self.set_task_from_data(test_task)
 
         # 실제 전체 코드에 들어갈 순서와 동일
-        self.open_drawer()
-        self.pick_medicine()
-        self.move_to_dispensing_position()
+        #self.open_drawer()
+        #self.pick_medicine()
+        #self.move_to_dispensing_position()
         self.pour_tweezer()
-        self.move_trash()
+        #self.move_trash()
 
         self.get_logger().info(
             "서랍 열기 → 약통 집기 → 상승 → "
