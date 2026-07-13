@@ -654,10 +654,12 @@ class PourPills:
             f"current_pos={[round(value, 2) for value in current_pos]}"
         )
 
-        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
 
-        # ---------------------------------------------약 부으러 가기 전 기울이기------------------
-        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
+        # 3번일때
+        # self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
+
+        # # ---------------------------------------------약 부으러 가기 전 기울이기------------------
+        # self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
 
     def lift_medicine_with_force(self):
         start_pose = self.get_current_pos_base()
