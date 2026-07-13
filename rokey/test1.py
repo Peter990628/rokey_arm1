@@ -244,6 +244,7 @@ class PourPills:
             "drawer_z",
             "drawer_rx",
             "drawer_ry",
+            "drawer_ry",
             "drawer_rz",
         ]
 
@@ -489,7 +490,8 @@ class PourPills:
         )
 
         self.movejx(
-            self.posx(551.116, 1.157, 30.878, 14.359, -179.476, 7.189),
+            self.posx(551.24, -0.57, 32.32, 55.01, -177.89, 42.86
+            ),
             vel=20,
             acc=20,
             ref=self.DR_BASE,
@@ -521,10 +523,6 @@ class PourPills:
             f"current_pos={[round(value, 2) for value in current_pos]}"
         )
 
-        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
-
-        # ---------------------------------------------약 부으러 가기 전 기울이기------------------
-        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
 
 
 
@@ -599,6 +597,12 @@ class PourPills:
     # 실제 전체 코드의 move_pour()에서 붓기 직전까지와 같은 방식
     # --------------------------------------------------
     def move_to_dispensing_position(self):
+
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
+
+        # ---------------------------------------------약 부으러 가기 전 기울이기------------------
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
+
         if self.X_DISPENSER_POS is None:
             raise RuntimeError("조제기 시작 Joint 위치가 설정되지 않음")
 
@@ -871,6 +875,9 @@ class PourPills:
 
         self.get_logger().info("약 붓기 완료")
 
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
+
         # self.movel(self.posx(0,-50,0,0,0,0), vel=20, acc=20, mod=self.DR_MV_MOD_REL)
 
     # --------------------------------------------------
@@ -921,9 +928,9 @@ class PourPills:
         # 실제 전체 코드에 들어갈 순서와 동일
         #self.open_drawer()
         #self.pick_medicine()
-        #self.move_to_dispensing_position()
+        self.move_to_dispensing_position()
         self.pour_tweezer()
-        #self.move_trash()
+        self.move_trash()
 
         self.get_logger().info(
             "서랍 열기 → 약통 집기 → 상승 → "
