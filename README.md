@@ -10,6 +10,8 @@
 <p align="center">
   <img width="4398" height="6322" alt="협동1_시스템아키텍처" src="https://github.com/user-attachments/assets/7557a425-36a0-494f-8d38-b805b70bbfb5" />
 </p>
+https://drive.google.com/file/d/1rQMJtL6ISLpyqz9C98pV-1yGLuqX5OQS/view?usp=sharing
+
 * *설명: PC와 매니퓰레이터 간의 통신 구조를 나타냅니다.*
 
 ### 1-2. 플로우 차트 (Flow Chart)
