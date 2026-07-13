@@ -546,6 +546,37 @@ class Opener(Node):
         self.movej(self.posj(0, 0, 0, 0, 0, -17), vel=3, acc=1, mod=self.DR_MV_MOD_REL)
         self.wait(0.5)
 
+        # 2. 충돌 임계값 설정 (노이즈를 고려해 적절히 설정, 필요시 튜닝)
+        torque_threshold = 10.0  # Mz (Z축 회전 꼬임 저항)
+        force_threshold = 30.0   # Fx, Fy (수평 밀림 저항)
+
+        # 3. 로봇이 회전하는 동안 실시간 힘/토크 감시
+        while self.check_motion() != 0:
+            current_force = self.get_tool_force(ref=self.DR_TOOL)
+            
+            # current_force[0], [1]은 X,Y 밀리는 힘 / [5]는 Z축 비틀림 저항(토크)
+            if abs(current_force[5]) > torque_threshold or abs(current_force[0]) > force_threshold or abs(current_force[1]) > force_threshold:
+                # (1) 즉시 급정지
+                self.stop(self.DR_QSTOP)
+                self.get_logger().error(f"[예외] 락킹 중 비정상적인 끼임(Jamming) 감지! 즉시 회전을 중단합니다.")
+                
+                # (2) 락킹을 풀기 위해 반대(시계) 방향으로 살짝 회전
+                self.get_logger().info("끼임 해제를 위해 시계 방향으로 5도 후진합니다.")
+                self.movej(self.posj(0, 0, 0, 0, 0, 5), vel=5, acc=5, mod=self.DR_MV_MOD_REL)
+                self.wait(0.5)
+
+                # (3) 안전 상단 고도로 대피 (약통을 그대로 들고 올라감)
+                self.get_logger().info("안전 고도로 로봇을 대피시킵니다.")
+                self.movel(self.posx(0, 0, 50, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+                
+                return False  # 예외 발생으로 실패 반환
+            
+            sleep(0.01) # CPU 과부하 방지
+
+        self.wait(0.5)
+        self.get_logger().info("=> 거치대 락킹 성공")
+        return True
+
     # --------------------------------------------------
     # 약통 고정
     # --------------------------------------------------
