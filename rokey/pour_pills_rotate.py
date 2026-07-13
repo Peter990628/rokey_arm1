@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from time import sleep
 
 import rclpy
@@ -50,11 +51,40 @@ FORCE_CHECK_INTERVAL_SEC = 0.05
 # 서랍 작업 전후와 약통 상승 후 사용하는 충돌 회피용 Joint 위치
 DRAWER_SAFE_JOINT = [-42.63, -0.65, 99.42, -1.37, 81.22, 7.57]
 
+# --------------------------------------------------
+# 약통 파지 확인 설정
+# --------------------------------------------------
+
+# 실제 그리퍼 파지 완료 신호가 연결된 DI 번호로 변경
+BOTTLE_GRIP_INPUT = 1
+
+# 파지 성공일 때 입력값
+BOTTLE_GRIP_OK_VALUE = ON
+
+# 파지 신호를 기다릴 최대 시간
+BOTTLE_GRIP_TIMEOUT_SEC = 2.0
+
+# 입력 확인 주기
+BOTTLE_GRIP_CHECK_INTERVAL_SEC = 0.05
+
 
 # 반드시 DSR_ROBOT2 import 전에 설정
 DR_init.__dsr__id = ROBOT_ID
 DR_init.__dsr__model = ROBOT_MODEL
 
+class GraspError(RuntimeError):
+    """약통 파지 관련 기본 예외."""
+    pass
+
+
+class GraspTimeoutError(GraspError):
+    """약통을 잡지 못한 경우. 재시도 가능."""
+    pass
+
+
+class GraspSensorError(GraspError):
+    """파지 센서 읽기 오류. 재시도 불가능."""
+    pass
 
 class PourPills:
     def __init__(
@@ -73,6 +103,7 @@ class PourPills:
         # DSR 함수
         # --------------------------------------------------
         self.set_digital_output = dsr_functions["set_digital_output"]
+        self.get_digital_input = dsr_functions["get_digital_input"]
         self.set_tool = dsr_functions["set_tool"]
         self.set_tcp = dsr_functions["set_tcp"]
         self.movel = dsr_functions["movel"]
@@ -375,6 +406,67 @@ class PourPills:
 
         sleep(1)
     
+    def wait_for_bottle_grip(
+        self,
+        timeout_sec=BOTTLE_GRIP_TIMEOUT_SEC,
+    ):
+        """
+        약통 파지 완료 디지털 입력을 timeout 동안 확인한다.
+
+        성공:
+            True 반환
+
+        실패:
+            GraspError 발생
+        """
+        start_time = time.monotonic()
+
+        while rclpy.ok():
+            input_value = self.get_digital_input(
+                BOTTLE_GRIP_INPUT
+            )
+
+            if input_value is None:
+                raise GraspSensorError(
+                    "약통 파지 입력이 None으로 반환됨: "
+                    f"DI={BOTTLE_GRIP_INPUT}"
+                )
+
+            if input_value not in (OFF, ON):
+                raise GraspSensorError(
+                    "약통 파지 입력값이 올바르지 않음: "
+                    f"DI={BOTTLE_GRIP_INPUT}, "
+                    f"value={input_value}"
+                )
+
+            if input_value == BOTTLE_GRIP_OK_VALUE:
+                elapsed = time.monotonic() - start_time
+
+                self.get_logger().info(
+                    "약통 파지 신호 확인 완료: "
+                    f"DI={BOTTLE_GRIP_INPUT}, "
+                    f"value={input_value}, "
+                    f"elapsed={elapsed:.2f} sec"
+                )
+                return
+
+            elapsed = time.monotonic() - start_time
+
+            if elapsed >= timeout_sec:
+                raise GraspTimeoutError(
+                    "약통 파지 신호 시간 초과: "
+                    f"medicine={self.medicine_name}, "
+                    f"DI={BOTTLE_GRIP_INPUT}, "
+                    f"last_value={input_value}, "
+                    f"timeout={timeout_sec:.1f} sec"
+                )
+
+            sleep(BOTTLE_GRIP_CHECK_INTERVAL_SEC)
+
+        raise GraspError(
+            "ROS2 종료로 약통 파지 확인이 중단됨"
+        )
+        
     # --------------------------------------------------
     # 5. get_current_posx() 반환 형식 처리
     # --------------------------------------------------
@@ -404,7 +496,7 @@ class PourPills:
             )
 
         return [float(value) for value in current_pos[:6]]
-
+        
     # --------------------------------------------------
     # 5. 서랍 열기 유후
     # --------------------------------------------------
@@ -454,32 +546,92 @@ class PourPills:
             vel=20,
             acc=20,
         ) 
+    
+    # --------------------------------------------------
+    # 파지 실패 시 다시 파지 시도
+    # --------------------------------------------------
 
+    def grip_bottle_until_success(self):
+        """
+        약통 파지가 확인될 때까지 계속 재시도한다.
+
+        전체 재시도 횟수 제한은 없지만,
+        한 번의 파지 확인에는 timeout을 적용한다.
+        """
+        attempt = 0
+
+        self.release()
+        sleep(0.5)  
+
+        while rclpy.ok():
+            attempt += 1
+
+            self.get_logger().info(
+                f"{self.medicine_name} 약통 파지 시도: "
+                f"{attempt}회"
+            )
+
+            try:
+                # 약통 보관 위치로 다시 이동
+                self.movejx(self.X_LOCK_RETURN, vel=self.vel, acc=self.acc, sol=2)
+
+                sleep(0.5)
+
+                # 그리퍼 닫기
+                self.grip()
+
+                # 한 번의 파지 확인에는 timeout 사용
+                self.wait_for_bottle_grip(
+                    timeout_sec=BOTTLE_GRIP_TIMEOUT_SEC
+                )
+
+                self.get_logger().info(
+                    f"{self.medicine_name} 약통 파지 성공: "
+                    f"attempt={attempt}"
+                )
+
+                return
+
+            except GraspTimeoutError as e:
+                self.get_logger().warning(
+                    f"{self.medicine_name} 약통 파지 실패: "
+                    f"attempt={attempt}, "
+                    f"error={e}"
+                )
+
+                # 실패한 상태로 그리퍼가 닫혀 있을 수 있으므로 다시 연다.
+                try:
+                    self.release()
+
+                except Exception as release_error:
+                    raise GraspError(
+                        "파지 실패 후 그리퍼를 열 수 없어 "
+                        "재시도를 중단함"
+                    ) from release_error
+
+                self.get_logger().info(
+                    f"{self.medicine_name} 약통 파지를 다시 시도함"
+                )
+
+                sleep(0.5)
+
+        raise GraspError(
+            "ROS2 종료로 약통 파지 재시도가 중단됨"
+        )
     # --------------------------------------------------
     # 7. 약통 집기 및 힘제어 상승
     # --------------------------------------------------
     def pick_medicine(self):
-        if self.X_STORAGE is None:
+        if self.X_LOCK_RETURN is None:
             raise RuntimeError("약 보관 위치가 설정되지 않음")
 
         self.get_logger().info(
             f"{self.medicine_name} 약통 집기 시작"
         )
 
-        # storage_*는 BASE 기준 posx이므로 movejx 사용
-        self.get_logger().info(
-            f"{self.medicine_name} 보관 위치로 이동"
-        )
+        self.grip_bottle_until_success()
 
-        self.movejx(self.X_LOCK_RETURN, vel=self.vel, acc=self.acc, sol=2)
-
-        sleep(0.5)
-
-        # 약통 잡기
-        self.grip()
-        sleep(0.5)
-
-        # 실제 프로젝트 코드와 동일하게 약통 자세를 먼저 조정
+        # 파지가 확인된 경우에만 약통 회전
         self.movel(
             self.posx(0, 0, 0, 0, 0, -17),
             vel=5,
@@ -529,8 +681,9 @@ class PourPills:
                 dir=FORCE_DIRECTION,
                 mod=self.DR_FC_MOD_REL,
             )
-            self.wait(0.5)
             force_started = True
+            self.wait(0.5)
+            
 
             while rclpy.ok():
                 current_pose = self.get_current_pos_base()
@@ -1002,11 +1155,29 @@ class PourPills:
                         f"작업 완료: "
                         f"{self.medicine_name}"
                     )
+                except GraspError as e:
+                    self.get_logger().error(
+                        "약통 파지 작업을 계속할 수 없어 전체 작업 중단: "
+                        f"medicine={self.medicine_name}, "
+                        f"error={e}"
+                    )
+
+                    try:
+                        self.release()
+
+                    except Exception as release_error:
+                        self.get_logger().error(
+                            f"작업 중단 후 그리퍼 열기 실패: "
+                            f"{release_error}"
+                        )
+
+                    raise
 
                 except Exception as e:
                     self.get_logger().error(
                         f"현재 작업 실행 실패: {e}"
                     )
+                    raise
 
                 # 작업 중 들어온 ROS 메시지 처리
                 rclpy.spin_once(
@@ -1056,6 +1227,7 @@ def main(args=None):
         # --------------------------------------------------
         from DSR_ROBOT2 import (
             set_digital_output,
+            get_digital_input,
             set_tool,
             set_tcp,
             movel,
@@ -1083,6 +1255,7 @@ def main(args=None):
         # --------------------------------------------------
         dsr_functions = {
             "set_digital_output": set_digital_output,
+            "get_digital_input": get_digital_input,
             "set_tool": set_tool,
             "set_tcp": set_tcp,
             "movel": movel,
