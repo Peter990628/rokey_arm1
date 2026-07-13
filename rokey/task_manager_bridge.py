@@ -11,7 +11,7 @@
 # item["status"] == "READY"인 약은 제외합니다.
 # READY가 아닌 약의 medicine_name을 가져옵니다.
 # /api/medicine/ 결과에서 같은 medicine_name의 약을 찾습니다.
-# 약 이름과 위치 좌표만 별도의 JSON 객체로 만듭니다.
+# 약 이름, 위치 좌표, 약병 끝점 오프셋을 별도의 JSON 객체로 만듭니다.
 # 부족한 약들을 하나의 JSON 배열로 묶어 새 토픽으로 발행합니다.
 
 #-----------------------/dsr01/pharmacy/events---------------------------------
@@ -51,6 +51,9 @@
 #     "dispensing_rx": 0.0,
 #     "dispensing_ry": 180.0,
 #     "dispensing_rz": 0.0,
+#     "bottle_tip_offset_x": 0.0,
+#     "bottle_tip_offset_y": 25.0,
+#     "bottle_tip_offset_z": -42.0,
 #     "drawer_x": 350.0,
 #     "drawer_y": 210.0,
 #     "drawer_z": 170.0,
@@ -73,7 +76,10 @@
 #     "dispensing_pose": {"x": 400.0, "y": 200.0, "z": 150.0,
 #                         "rx": 0.0, "ry": 180.0, "rz": 0.0},
 #     "drawer_pose": {"x": 350.0, "y": 210.0, "z": 170.0,
-#                     "rx": 0.0, "ry": 180.0, "rz": 0.0}
+#                     "rx": 0.0, "ry": 180.0, "rz": 0.0},
+#     "bottle_tip_offset_x": 0.0,
+#     "bottle_tip_offset_y": 25.0,
+#     "bottle_tip_offset_z": -42.0
 #   }
 # ]
 
@@ -278,6 +284,15 @@ class TaskManagerBridge(Node):
                             "dispensing",
                         ),
                         "drawer_pose": self._make_pose(medicine, "drawer"),
+                        "bottle_tip_offset_x": medicine.get(
+                            "bottle_tip_offset_x"
+                        ),
+                        "bottle_tip_offset_y": medicine.get(
+                            "bottle_tip_offset_y"
+                        ),
+                        "bottle_tip_offset_z": medicine.get(
+                            "bottle_tip_offset_z"
+                        ),
                     }
                 )
                 added_names.add(medicine_name)

@@ -314,7 +314,7 @@ class ManipulatorTest2:
         self.log_current_pos()
         sleep(0.5)
 
-        movej(posj(*SCRAPER_RETURN_MIDDLE_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC)
+        movej(posj(*SCRAPER_RETURN_MIDDLE_MIDDLE), vel=SCRAPER_VELOCITY, acc=SCRAPER_ACC) 
         self.log_current_pos()
         sleep(0.5)
 
