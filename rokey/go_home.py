@@ -28,25 +28,10 @@ def main(args=None):
     try:
         from DSR_ROBOT2 import (
             set_digital_output,
-            get_digital_input,
             set_tool,
             set_tcp,
             movej,
-			movel,
-			task_compliance_ctrl,
-			get_tool_force,
-			amove_periodic,
-			check_position_condition,
-            wait,
-            trans,
-            set_desired_force,
-            DR_BASE,
-            DR_MV_MOD_ABS,
-            DR_MV_MOD_REL,
-            DR_AXIS_Z,
-            DR_SSTOP,
-            get_current_posx,
-            release_force,
+
         )
 
         from DR_common2 import posj, posx
@@ -65,14 +50,6 @@ def main(args=None):
         set_digital_output(1, ON)
         set_digital_output(2, OFF)
         sleep(1)
-
-    def grip():
-        node.get_logger().info("set for digital output 0 1 for grip")
-        set_digital_output(1, OFF)
-        set_digital_output(2, OFF)
-        set_digital_output(1, OFF)
-        set_digital_output(2, ON)
-        sleep(1)    
 # --------------------------------------------------------------------------------------------------------------------
     #go to home
     ungrip()

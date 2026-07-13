@@ -1,6 +1,6 @@
 # manipulator_test_2.py
 # paper_bag_test + manipulation_node_scraper
-# 담당자 : 박현정, 조해벽
+# 담당자 : hyj, peter
 
 
 

@@ -1,3 +1,7 @@
+# pull 방식 뚜껑 개봉 코드
+# by khs2
+
+
 import rclpy
 import DR_init
 from time import sleep

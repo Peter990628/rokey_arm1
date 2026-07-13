@@ -1,3 +1,7 @@
+# spin 형식 약통 뚜껑 개봉 코드
+# by khs2
+
+
 import rclpy
 import DR_init
 from time import sleep
@@ -19,7 +23,7 @@ class SpinLidTester:
         from DSR_ROBOT2 import (
             set_digital_output, set_tool, set_tcp, 
             movej, movel, movejx, wait, DR_BASE, DR_MV_MOD_REL,
-            set_desired_force, release_force, get_current_posx,
+            set_desired_force, release_force, get_current_posx,get_current_posj,
             task_compliance_ctrl, release_compliance_ctrl, amovel, get_tool_force 
         )
         from DR_common2 import posj, posx
@@ -36,6 +40,7 @@ class SpinLidTester:
         self.set_desired_force = set_desired_force 
         self.release_force = release_force         
         self.get_current_posx = get_current_posx   
+        self.get_current_posj = get_current_posj
         self.task_compliance_ctrl = task_compliance_ctrl
         self.release_compliance_ctrl = release_compliance_ctrl
         self.amovel = amovel              
@@ -54,7 +59,7 @@ class SpinLidTester:
         
 
     def define_positions(self):
-        self.J_READY = self.posj(0, 0, 90, 0, 90, 0)
+        self.J_READY = self.posj(0, 0, 90, 0, 90, 0) # 
         self.X_STORAGE_APPROACH = self.posx(357.12, 219.79, 200.52, 96.00, 176.96, 105.65)
         self.storage_loc = self.posx(437.39, 423.46, 215.54, 44.38, -180.00, 50.46)
         self.X_PULL_FIX_ABOVE = self.posx(550.90, 1.02, 200.52, 8.33, -179.62, 18.10)
@@ -68,7 +73,7 @@ class SpinLidTester:
 
 
     def release(self):
-        self.node.get_logger().info("[시뮬레이션] 그리퍼 열기")
+        self.node.get_logger().info("그리퍼 열기")
         self.set_digital_output(1, OFF)
         self.set_digital_output(2, OFF)
         self.set_digital_output(1, ON)
@@ -76,7 +81,7 @@ class SpinLidTester:
         sleep(0.5)
 
     def grip(self):
-        self.node.get_logger().info("[시뮬레이션] 그리퍼 닫기 (약통 파지)")
+        self.node.get_logger().info("그리퍼 닫기 (약통 파지)")
         self.set_digital_output(1, OFF)
         self.set_digital_output(2, OFF)
         self.set_digital_output(1, OFF)
@@ -91,14 +96,14 @@ class SpinLidTester:
         self.movej(self.J_READY, vel=self.vel, acc=self.acc)
         self.wait(1.0)
 
-    # def log_current_pos(self) :
-    #     current_posx, _ = self.get_current_posx(ref=self.DR_BASE)
-    #     current_posj = self.get_current_posj()
-    #     x = current_posx[0]
-    #     y = current_posx[1]
-    #     z = current_posx[2]
-    #     self.node.get_logger().info(f"좌표 확인: x={x:.2f}, y={y:.2f}, z={z:.2f}")
-    #     self.node.get_logger().info(f"좌표 확인(joint): j1={current_posj[0]:.2f}, j2={current_posj[1]:.2f}, j3={current_posj[2]:.2f}, j4={current_posj[3]:.2f}, j5={current_posj[4]:.2f}, j6={current_posj[5]:.2f}\n")
+    def log_current_pos(self) : # 현재 pose 로그에 띄우기
+        current_posx, _ = self.get_current_posx(ref=self.DR_BASE)
+        current_posj = self.get_current_posj()
+        x = current_posx[0]
+        y = current_posx[1]
+        z = current_posx[2]
+        self.node.get_logger().info(f"좌표 확인: x={x:.2f}, y={y:.2f}, z={z:.2f}")
+        self.node.get_logger().info(f"좌표 확인(joint): j1={current_posj[0]:.2f}, j2={current_posj[1]:.2f}, j3={current_posj[2]:.2f}, j4={current_posj[3]:.2f}, j5={current_posj[4]:.2f}, j6={current_posj[5]:.2f}\n")
 
     def storage_grasp(self):
         self.node.get_logger().info("=== 단위 테스트 시작: 적재소 약통 파지 시퀀스 ===")
@@ -216,7 +221,7 @@ class SpinLidTester:
         self.lock()
         self.wait(0.5)
 
-        # self.log_current_pos()
+        self.log_current_pos()
 
         # 현재 위치 실측 저장 
         self.X_LOCK_RETURN = self.get_current_posx(ref=self.DR_BASE)[0]
@@ -227,7 +232,7 @@ class SpinLidTester:
 
         self.movel(self.posx(0, 0, 100, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
 
-        # self.log_current_pos()
+        self.log_current_pos()
         
         self.node.get_logger().info("=== 단위 테스트 완료 2 ===")
 

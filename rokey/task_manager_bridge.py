@@ -1,4 +1,7 @@
 # task_manager_bridge.py
+# by peter
+
+
 
 # 작동 순서
 # 1초마다 /api/events/를 GET합니다.
