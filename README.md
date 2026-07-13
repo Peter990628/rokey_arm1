@@ -1,3 +1,4 @@
+
 # 💊 약국 업무 보조 시스템
 > **조 이름:** [C-2 - ROKEY]
 > **팀원:** [김혜승_박현정_서영채_조해벽]
@@ -13,7 +14,7 @@
 
 ### 1-2. 플로우 차트 (Flow Chart)
 <p align="center">
-  <img src="./images/flow_chart.png" alt="플로우 차트 이미지" width="300" height="300">
+ <img width="1531" height="2031" alt="협동1_플로우차트 drawio" src="https://github.com/user-attachments/assets/9911ac31-30d6-4b11-8999-f204dddd4891" />
 </p>
 * *설명: [UI부터 전체 프로세스 진행도를 나타냅니다.]*
 
