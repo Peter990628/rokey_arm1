@@ -8,7 +8,7 @@
 
 ### 1-1. 시스템 설계도 (System Architecture)
 <p align="center">
-  <img src="./images/system_design.png" alt="시스템 설계도 이미지" width="400">
+  <img width="4398" height="6322" alt="협동1_시스템아키텍처" src="https://github.com/user-attachments/assets/7557a425-36a0-494f-8d38-b805b70bbfb5" />
 </p>
 * *설명: PC와 매니퓰레이터 간의 통신 구조를 나타냅니다.*
 
