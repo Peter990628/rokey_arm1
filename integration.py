@@ -2,7 +2,7 @@ import rclpy
 import DR_init
 from time import sleep
 import time
-import threading
+# import threading
 from rclpy.node import Node
 from std_msgs.msg import String
 import json
@@ -15,7 +15,7 @@ ROBOT_MODEL = "m0609"
 # --------------------------------------------------
 # [변수 정의 1] opener.py 관련 (Suffix _1 적용)
 # --------------------------------------------------
-VELOCITY_1, ACC_1 = 60, 60
+VELOCITY_1, ACC_1 = 50, 50
 
 POUR_TOTAL_ANGLE_DEG_1 = -30.0
 POUR_STEP_DEG_1 = 6.0
@@ -48,6 +48,86 @@ BOTTLE_GRIP_TIMEOUT_SEC_2 = 2.0
 BOTTLE_GRIP_CHECK_INTERVAL_SEC_2 = 0.05
 
 ON, OFF = 1, 0
+
+TEST_MEDICINE_NUMBER = 3
+
+TEST_TASKS = {
+    1: {
+        "medicine_number": 1,
+        "medicine_name": "탁센",
+        "storage_x": 218.23,
+        "storage_y": 295.72,
+        "storage_z": 251.97,
+        "storage_rx": 51.17,
+        "storage_ry": 178.87,
+        "storage_rz": -116.43,
+        "dispensing_x": -15.23,
+        "dispensing_y": 23.85,
+        "dispensing_z": 48.29,
+        "dispensing_rx": 14.40,
+        "dispensing_ry": 55.66,
+        "dispensing_rz": -108.35,
+        "bottle_tip_offset_x": 0.0,
+        "bottle_tip_offset_y": 24.0,
+        "bottle_tip_offset_z": -45.0,
+        "drawer_x": -20.87,
+        "drawer_y": 10.92,
+        "drawer_z": 110.58,
+        "drawer_rx": -38.71,
+        "drawer_ry": -37.23,
+        "drawer_rz": -58.32,
+    },
+    2: {
+        "medicine_number": 2,
+        "medicine_name": "타이레놀",
+        "storage_x": 365.66,
+        "storage_y": 304.19,
+        "storage_z": 257.04,
+        "storage_rx": 42.71,
+        "storage_ry": 178.99,
+        "storage_rz": 43.13,
+        "dispensing_x": -23.23,
+        "dispensing_y": 25.53,
+        "dispensing_z": 45.30,
+        "dispensing_rx": 20.25,
+        "dispensing_ry": 55.52,
+        "dispensing_rz": -120.31,
+        "bottle_tip_offset_x": 0.0,
+        "bottle_tip_offset_y": 23.5,
+        "bottle_tip_offset_z": -51.0,
+        "drawer_x": -29.61,
+        "drawer_y": 13.50,
+        "drawer_z": 104.92,
+        "drawer_rx": -52.24,
+        "drawer_ry": -39.23,
+        "drawer_rz": -44.14,
+    },
+    3: {
+        "medicine_number": 3,
+        "medicine_name": "별사탕",
+        "storage_x": 437.39,
+        "storage_y": 423.46,
+        "storage_z": 215.54,
+        "storage_rx": 44.38,
+        "storage_ry": -180.0,
+        "storage_rz": 50.46,
+        "dispensing_x": -33.32,
+        "dispensing_y": 29.23,
+        "dispensing_z": 41.55,
+        "dispensing_rx": 34.95,
+        "dispensing_ry": 62.80,
+        "dispensing_rz": -132.18,
+        "bottle_tip_offset_x": 0.0,
+        "bottle_tip_offset_y": 25.0,
+        "bottle_tip_offset_z": -42.0,
+        "drawer_x": -38.18,
+        "drawer_y": 18.52,
+        "drawer_z": 99.15,
+        "drawer_rx": -59.93,
+        "drawer_ry": -46.03,
+        "drawer_rz": -40.83,
+    },
+}
 
 DR_init.__dsr__id = ROBOT_ID
 DR_init.__dsr__model = ROBOT_MODEL
@@ -95,15 +175,12 @@ class PharmacyRobot(Node):
         self.trans = trans
         self.task_compliance_ctrl = task_compliance_ctrl
         self.get_tool_force = get_tool_force
-        self.amove_periodic = amove_periodic
+        # self.amove_periodic = amove_periodic
         self.check_position_condition = check_position_condition
         self.set_desired_force = set_desired_force
         self.get_current_posx = get_current_posx
         self.release_force = release_force
         self.release_compliance_ctrl = release_compliance_ctrl
-        self.amovel = amovel
-        self.amovej = amovej
-        self.stop = stop
         self.check_motion = check_motion
 
         self.DR_BASE = DR_BASE
@@ -112,8 +189,6 @@ class PharmacyRobot(Node):
         self.DR_FC_MOD_REL = DR_FC_MOD_REL
         self.DR_TOOL = DR_TOOL
         self.DR_AXIS_Z = DR_AXIS_Z
-        self.DR_SSTOP = DR_SSTOP
-        self.DR_QSTOP = DR_QSTOP
         
         self.posj = posj
         self.posx = posx
@@ -123,7 +198,7 @@ class PharmacyRobot(Node):
 
         # 상태 변수들
         self.X_LOCK_RETURN = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.bottle_tip_offset_tcp = [0.0, 0.0, 75.0]
+        self.bottle_tip_offset_tcp_1= [0.0, 0.0, 75.0]
         self.lid_type = None
         self.medicine_name = None
 
@@ -137,7 +212,8 @@ class PharmacyRobot(Node):
         self.define_positions()
         
         # Subscriber 통합 설정
-        self.create_subscription(String, "/dsr01/pharmacy/medicine", self.medicine_callback, 10)
+        self.create_subscription(String, "/dsr01/pharmacy/refill_required_medicine", self.medicine_callback, 10)
+        self.DONE_URL = "http://172.23.0.129:8000/api/tasks/refill/"
         self.init_robot()
 
     def define_positions(self):
@@ -154,77 +230,213 @@ class PharmacyRobot(Node):
         self.X_TRASH = self.posx(-423.12, -96.72, 89.41, 8.51, -179.18, 101.63)
 
     # ------------------ 벡터 연산 헬퍼 (공통) ------------------
-    def get_current_pos_base(self):
-        current_result = self.get_current_posx(ref=self.DR_BASE)
-        return [float(value) for value in current_result[0][:6]]
-    
     @staticmethod
     def _matmul_3x3(left, right):
-        return [[sum(left[r][k] * right[k][c] for k in range(3)) for c in range(3)] for r in range(3)]
+        return [
+            [
+                sum(left[row][k] * right[k][col] for k in range(3))
+                for col in range(3)
+            ]
+            for row in range(3)
+        ]
 
     @staticmethod
     def _matvec_3x3(matrix, vector):
-        return [sum(matrix[r][c] * vector[c] for c in range(3)) for r in range(3)]
+        return [
+            sum(matrix[row][col] * vector[col] for col in range(3))
+            for row in range(3)
+        ]
 
     @staticmethod
     def _rotation_x(angle_rad):
-        c, s = math.cos(angle_rad), math.sin(angle_rad)
-        return [[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]]
+        c = math.cos(angle_rad)
+        s = math.sin(angle_rad)
+        return [
+            [1.0, 0.0, 0.0],
+            [0.0, c, -s],
+            [0.0, s, c],
+        ]
 
     @staticmethod
     def _rotation_y(angle_rad):
-        c, s = math.cos(angle_rad), math.sin(angle_rad)
-        return [[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]]
+        c = math.cos(angle_rad)
+        s = math.sin(angle_rad)
+        return [
+            [c, 0.0, s],
+            [0.0, 1.0, 0.0],
+            [-s, 0.0, c],
+        ]
 
     @staticmethod
     def _rotation_z(angle_rad):
-        c, s = math.cos(angle_rad), math.sin(angle_rad)
-        return [[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]]
+        c = math.cos(angle_rad)
+        s = math.sin(angle_rad)
+        return [
+            [c, -s, 0.0],
+            [s, c, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
 
     @classmethod
     def _zyz_to_rotation_matrix(cls, a_deg, b_deg, c_deg):
-        rz_a, ry_b, rz_c = cls._rotation_z(math.radians(a_deg)), cls._rotation_y(math.radians(b_deg)), cls._rotation_z(math.radians(c_deg))
-        return cls._matmul_3x3(cls._matmul_3x3(rz_a, ry_b), rz_c)
+        rz_a = cls._rotation_z(math.radians(a_deg))
+        ry_b = cls._rotation_y(math.radians(b_deg))
+        rz_c = cls._rotation_z(math.radians(c_deg))
+        return cls._matmul_3x3(
+            cls._matmul_3x3(rz_a, ry_b),
+            rz_c,
+        )
 
     @staticmethod
     def _angle_near_reference(angle_deg, reference_deg):
-        return angle_deg + 360.0 * round((reference_deg - angle_deg) / 360.0)
+        return angle_deg + 360.0 * round(
+            (reference_deg - angle_deg) / 360.0
+        )
 
     @classmethod
     def _rotation_matrix_to_zyz(cls, rotation, reference_abc):
         r22 = max(-1.0, min(1.0, rotation[2][2]))
-        b, sin_b = math.acos(r22), math.sin(math.acos(r22))
-        if abs(sin_b) > 1e-9:
-            a, c = math.atan2(rotation[1][2], rotation[0][2]), math.atan2(rotation[2][1], -rotation[2][0])
+        b = math.acos(r22)
+        sin_b = math.sin(b)
+        epsilon = 1e-9
+
+        if abs(sin_b) > epsilon:
+            a = math.atan2(rotation[1][2], rotation[0][2])
+            c = math.atan2(rotation[2][1], -rotation[2][0])
         elif r22 > 0.0:
-            b, a, c = 0.0, math.atan2(rotation[1][0], rotation[0][0]), 0.0
+            b = 0.0
+            a = math.atan2(rotation[1][0], rotation[0][0])
+            c = 0.0
         else:
-            b, a, c = math.pi, math.atan2(-rotation[1][0], -rotation[0][0]), 0.0
-        cand_1 = [math.degrees(a), math.degrees(b), math.degrees(c)]
-        cand_2 = [cand_1[0] + 180.0, -cand_1[1], cand_1[2] + 180.0]
+            b = math.pi
+            a = math.atan2(-rotation[1][0], -rotation[0][0])
+            c = 0.0
+
+        candidate_1 = [
+            math.degrees(a),
+            math.degrees(b),
+            math.degrees(c),
+        ]
+
+        candidate_2 = [
+            candidate_1[0] + 180.0,
+            -candidate_1[1],
+            candidate_1[2] + 180.0,
+        ]
+
         candidates = []
-        for cand in (cand_1, cand_2):
-            adjusted = [cls._angle_near_reference(cand[i], reference_abc[i]) for i in range(3)]
-            candidates.append((sum((adjusted[i] - reference_abc[i]) ** 2 for i in range(3)), adjusted))
+        for candidate in (candidate_1, candidate_2):
+            adjusted = [
+                cls._angle_near_reference(
+                    candidate[index],
+                    reference_abc[index],
+                )
+                for index in range(3)
+            ]
+
+            score = sum(
+                (adjusted[index] - reference_abc[index]) ** 2
+                for index in range(3)
+            )
+            candidates.append((score, adjusted))
+
         return min(candidates, key=lambda item: item[0])[1]
 
     @staticmethod
     def _make_angle_sequence(total_angle_deg, step_deg):
+        if step_deg <= 0.0:
+            raise ValueError("POUR_STEP_DEG는 0보다 커야 함")
+
+        if abs(total_angle_deg) < 1e-9:
+            return []
+
         direction = 1.0 if total_angle_deg > 0.0 else -1.0
         signed_step = abs(step_deg) * direction
-        angles, current = [], signed_step
-        while abs(current) < abs(total_angle_deg):
-            angles.append(current)
-            current += signed_step
+
+        angles = []
+        current_angle = signed_step
+
+        while abs(current_angle) < abs(total_angle_deg):
+            angles.append(current_angle)
+            current_angle += signed_step
+
         angles.append(total_angle_deg)
         return angles
 
-    def _calculate_virtual_tcp_pose(self, start_rotation, tip_position_base, angle_deg, reference_abc):
-        target_rotation = self._matmul_3x3(start_rotation, self._rotation_y(math.radians(angle_deg)))
-        rotated_tip = self._matvec_3x3(target_rotation, self.bottle_tip_offset_tcp)
-        target_position = [tip_position_base[i] - rotated_tip[i] for i in range(3)]
-        target_abc = self._rotation_matrix_to_zyz(target_rotation, reference_abc)
-        return self.posx(*(target_position + target_abc)), target_position + target_abc, target_abc
+    def _calculate_virtual_tcp_pose_1(
+        self,
+        start_rotation,
+        tip_position_base,
+        angle_deg,
+        reference_abc,
+    ):
+        local_y_rotation = self._rotation_y(
+            math.radians(angle_deg)
+        )
+
+        target_rotation = self._matmul_3x3(
+            start_rotation,
+            local_y_rotation,
+        )
+
+        rotated_tip_offset_base = self._matvec_3x3(
+            target_rotation,
+            self.bottle_tip_offset_tcp,
+        )
+
+        target_position = [
+            tip_position_base[index]
+            - rotated_tip_offset_base[index]
+            for index in range(3)
+        ]
+
+        target_abc_1 = self._rotation_matrix_to_zyz(
+            target_rotation,
+            reference_abc,
+        )
+
+        target_values_1 = target_position + target_abc_1
+        target_pose_1 = self.posx(*target_values_1)
+
+        return target_pose_1, target_values_1, target_abc_1
+    
+    def _calculate_virtual_tcp_pose_2(
+        self,
+        start_rotation,
+        tip_position_base,
+        angle_deg,
+        reference_abc,
+    ):
+        local_x_rotation = self._rotation_x(
+            math.radians(angle_deg)
+        )
+
+        target_rotation = self._matmul_3x3(
+            start_rotation,
+            local_x_rotation,
+        )
+
+        rotated_tip_offset_base = self._matvec_3x3(
+            target_rotation,
+            self.bottle_tip_offset_tcp,
+        )
+
+        target_position = [
+            tip_position_base[index]
+            - rotated_tip_offset_base[index]
+            for index in range(3)
+        ]
+
+        target_abc_2 = self._rotation_matrix_to_zyz(
+            target_rotation,
+            reference_abc,
+        )
+
+        target_values_2 = target_position + target_abc_2
+        target_pose_2 = self.posx(*target_values_2)
+
+        return target_pose_2, target_values_2, target_abc_2
+
 
     # ------------------ 기본 제어 (공통) ------------------
     def release(self):
@@ -301,11 +513,35 @@ class PharmacyRobot(Node):
                 float(task_data.get("bottle_tip_offset_z", 75.0)),
             ]
 
-            self.get_logger().info(f"수신 성공! : {self.medicine_name} 통합 작업을 시작합니다. (뚜껑 타입: {self.lid_type})")
+            self.drawer_x = float(task_data.get["drawer_x"])
+            self.drawer_y = float(task_data.get["drawer_y"])
+            self.drawer_z = float(task_data.get["drawer_z"])
+            self.drawer_rx = float(task_data.get["drawer_rx"])
+            self.drawer_ry = float(task_data.get["drawer_ry"])
+            self.drawer_rz = float(task_data.get["drawer_rz"])
+            self.X_DRAWER = self.posj(
+                self.drawer_x,
+                self.drawer_y,
+                self.drawer_z,
+                self.drawer_rx,
+                self.drawer_ry,
+                self.drawer_rz,
+            )
+
+            self.lid_type = str(task_data.get["lid_type"]).strip().lower()
+            self.storage_stock = int(task_data.get["storage_stock"])
+            self.dispensing_stock = int(task_data.get["dispensing_stock"])
+
+            # 현재 코드는 저장 약품 전부를 리필량으로 사용
+            self.refill_amount = self.storage_stock
+            if self.refill_amount <= 0:
+                raise ValueError("storage_stock이 0 이하라 리필할 수 없음")
+
+            self.get_logger().info(f"수신 성공! : {self.medicine_name} 의 리필 과정을 시작합니다. (뚜껑 타입: {self.lid_type})")
             
             # 메인 스레드 블로킹 방지를 위한 비동기 처리
-            threading.Thread(target=self.run, daemon=True).start()
-
+            # threading.Thread(target=self.run, daemon=True).start()
+        
         except Exception as e:
             self.get_logger().error(f"Callback JSON Parsing Error: {e}")
 
@@ -618,7 +854,7 @@ class PharmacyRobot(Node):
                 self.release_compliance_ctrl()
 
     def pick_medicine(self):
-        if self.X_LOCK_RETURN is None or self.X_LOCK_RETURN == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]:
+        if self.X_LOCK_RETURN is None or self.X_LOCK_RETURN == self.posx(551.24, -0.57, 32.32, 55.01, -177.89, 42.86):
             raise RuntimeError("약 보관 위치가 설정되지 않음")
             
         self.get_logger().info(f"=== {self.medicine_name} 약통 다시 집기 시작 ===")
@@ -659,12 +895,134 @@ class PharmacyRobot(Node):
         
         # 원상복구
         self.movejx(self.X_DISPENSER_POS, vel=self.vel_2, acc=self.acc_2, sol=2)
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 70.82, -181.30), vel=10, acc=10)
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
+
+    def open_drawer(self):
+        if self.X_DRAWER is None:
+            raise RuntimeError("서랍 열기 위치가 설정되지 않음")
+
+        self.get_logger().info("서랍 열기 시작")
+
+        self.movej(
+            self.posj(*DRAWER_SAFE_JOINT_2),
+            vel=20,
+            acc=20,
+        )
+
+        self.movej(
+            self.X_DRAWER,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE
+        )
+
+        self.grip()
+
+        self.movel(
+            self.posx(-125, 0, 0, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+
+        self.release()
+
+        x, y, z, rx, ry, rz = self.get_current_pos_base()
+        self.X_DRAWER_CLOSED = self.posx(x, y, z, rx, ry, rz)
+
+        self.get_logger().info(
+            "서랍 열기 완료: "
+            f"x={x:.2f}, y={y:.2f}, z={z:.2f}, "
+            f"rx={rx:.2f}, ry={ry:.2f}, rz={rz:.2f}"
+        )
+
+        # 열린 서랍에서 약 보관 위치로 이동하기 전에 안전 Joint로 복귀한다.
+        self.movej(
+            self.posj(*DRAWER_SAFE_JOINT_2),
+            vel=20,
+            acc=20,
+        ) 
+
+    def close_drawer(self):
+        if self.X_DRAWER_CLOSED is None:
+            raise RuntimeError("서랍을 연 후 위치가 저장되지 않음")
+
+        if self.X_DRAWER is None:
+            raise RuntimeError("서랍 위치가 설정되지 않음")
+
+        self.get_logger().info("서랍 닫기 시작")
+
+        self.movejx(
+            self.X_DRAWER_CLOSED,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+
+        self.movel(
+            self.posx(125, 0, 0, 0, 0, 0),
+            vel=10,
+            acc=10,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+
+        self.get_logger().info("서랍 닫기 완료")
+    
+    def notify_done(self):
+        if self.medicine_name is None:
+            raise RuntimeError("medicine_name이 설정되지 않음")
+
+        if self.refill_amount is None:
+            raise RuntimeError("refill_amount가 설정되지 않음")
+
+        payload = {
+            "medicine_name": self.medicine_name,
+            "amount": self.refill_amount,
+        }
+
+        self.get_logger().info(f"리필 완료 POST 전송: {payload}")
+
+        try:
+            response = requests.post(
+                self.DONE_URL,
+                json=payload,
+                timeout=3,
+            )
+
+            if response.ok:
+                try:
+                    response_data = response.json()
+                except ValueError:
+                    response_data = response.text
+
+                self.get_logger().info(
+                    f"리필 완료 POST 성공: "
+                    f"{response_data}"
+                )
+
+            else:
+                self.get_logger().error(
+                    f"리필 완료 POST 실패: "
+                    f"status={response.status_code}, "
+                    f"body={response.text}"
+                )
+
+        except requests.RequestException as e:
+            self.get_logger().error(
+                f"리필 완료 POST 통신 오류: {e}"
+            )
 
     # --------------------------------------------------
     # 통합된 전체 작업 실행
     # --------------------------------------------------
     def run(self):
+        test_task = TEST_TASKS[TEST_MEDICINE_NUMBER]
         self.get_logger().info("=== 전체 작업 시작 (Opener + Pourer 연속 실행) ===")
+        self.open_drawer()
         
         # 1단계: Opener 파트 (뚜껑 열고 버리기)
         success = False
