@@ -26,6 +26,9 @@ setup(
         'console_scripts': [
             'pour_pills_rotate = rokey.pour_pills_rotate:main',
             'test1 = rokey.test1:main',
+            'task_manager_bridge.py = rokey.task_manager_bridge:main',
+            'task_manager_test.py = rokey.task_manager_test:main',
+            'task_manager_fianl.py = rokey.task_manager_fianl:main',
             ],
         },
     )
