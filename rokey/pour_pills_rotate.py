@@ -25,7 +25,7 @@ ACC = 50
 ON = 1
 OFF = 0
 
-MEDICINE_TOPIC = "/dsr01/pharmacy/medicine"
+MEDICINE_TOPIC = "/dsr01/pharmacy/refill_required_medicine"
 DONE_URL = "http://172.23.0.129:8000/api/tasks/refill/"
 
 # --------------------------------------------------
