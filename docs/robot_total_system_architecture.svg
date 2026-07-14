@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <style>
+      text { font-family: NanumGothic, sans-serif; letter-spacing: 0; }
+      .title { font-size: 34px; font-weight: 700; fill: #111827; }
+      .subtitle { font-size: 17px; font-weight: 400; fill: #64748b; }
+      .band-label { font-size: 17px; font-weight: 700; fill: #475569; }
+      .box-title { font-size: 19px; font-weight: 700; fill: #0f172a; }
+      .box-copy { font-size: 14px; font-weight: 400; fill: #475569; }
+      .small { font-size: 13px; font-weight: 500; fill: #475569; }
+      .arrow-label { font-size: 13px; font-weight: 600; fill: #334155; }
+      .white-title { font-size: 20px; font-weight: 700; fill: #ffffff; }
+      .white-copy { font-size: 14px; font-weight: 400; fill: #e2e8f0; }
+      .step-num { font-size: 17px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+      .line { stroke: #334155; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .line-blue { stroke: #2563eb; stroke-width: 2.5; fill: none; marker-end: url(#arrowBlue); }
+      .line-dashed { stroke: #64748b; stroke-width: 2.2; stroke-dasharray: 7 6; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#ffffff"/>
+
+  <text x="54" y="58" class="title">약국 보조 로봇 시스템 아키텍처</text>
+  <text x="55" y="88" class="subtitle">처방 데이터 수신부터 약통 개봉, 조제기 리필, 포장까지의 ROS 2 통합 흐름</text>
+
+  <!-- Data layer -->
+  <rect x="32" y="120" width="1536" height="172" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="55" y="151" class="band-label">업무 / 데이터</text>
+
+  <rect x="220" y="170" width="260" height="88" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+  <rect x="220" y="170" width="10" height="88" rx="5" fill="#14b8a6"/>
+  <text x="250" y="205" class="box-title">처방 UI</text>
+  <text x="250" y="231" class="box-copy">처방전 입력 · 작업 확인</text>
+
+  <rect x="665" y="158" width="310" height="112" rx="8" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="700" y="199" class="box-title">Django REST Backend</text>
+  <text x="700" y="226" class="box-copy">약품 · 처방 이벤트 · 재고 API</text>
+  <text x="700" y="249" class="small">/api/events/ · /api/medicine/</text>
+
+  <rect x="1170" y="170" width="250" height="88" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="1204" y="205" class="box-title">PostgreSQL DB</text>
+  <text x="1204" y="231" class="box-copy">좌표 · 재고 · 작업 상태</text>
+
+  <path d="M480 214 H665" class="line"/>
+  <text x="535" y="198" class="arrow-label">처방 등록</text>
+  <path d="M975 214 H1170" class="line"/>
+  <path d="M1170 238 H975" class="line-dashed"/>
+  <text x="1027" y="199" class="arrow-label">조회 / 갱신</text>
+
+  <!-- ROS layer -->
+  <rect x="32" y="316" width="1536" height="245" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="55" y="348" class="band-label">ROS 2 판단 / 제어</text>
+
+  <rect x="210" y="382" width="350" height="126" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="246" y="420" class="box-title">task_manager_bridge</text>
+  <text x="246" y="447" class="box-copy">Backend GET · JSON 가공 · ROS Publish</text>
+  <text x="246" y="474" class="small">events / medicine / refill_required</text>
+
+  <rect x="730" y="352" width="500" height="188" rx="8" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+  <text x="768" y="393" class="white-title">robot_total</text>
+  <text x="768" y="420" class="white-copy">작업 큐 관리 · 로봇 상태 판단 · 순차 실행</text>
+  <line x1="768" y1="440" x2="1192" y2="440" stroke="#5eead4" stroke-width="1" opacity="0.7"/>
+  <rect x="768" y="460" width="122" height="47" rx="6" fill="#134e4a"/>
+  <rect x="904" y="460" width="126" height="47" rx="6" fill="#134e4a"/>
+  <rect x="1044" y="460" width="148" height="47" rx="6" fill="#134e4a"/>
+  <text x="829" y="489" text-anchor="middle" class="white-copy">개봉 판단</text>
+  <text x="967" y="489" text-anchor="middle" class="white-copy">리필 제어</text>
+  <text x="1118" y="489" text-anchor="middle" class="white-copy">포장 제어</text>
+
+  <rect x="1330" y="382" width="200" height="126" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="1364" y="420" class="box-title">조제기 / HMI</text>
+  <text x="1364" y="451" class="box-copy">scraper_ready</text>
+  <text x="1364" y="475" class="box-copy">dispensing_done</text>
+
+  <path d="M820 270 V320 H385 V382" class="line"/>
+  <text x="503" y="338" class="arrow-label">HTTP GET</text>
+
+  <path d="M560 445 H730" class="line-blue"/>
+  <text x="582" y="425" class="arrow-label">ROS 2 String(JSON)</text>
+
+  <path d="M1230 426 H1330" class="line-blue"/>
+  <path d="M1330 472 H1230" class="line-dashed"/>
+
+  <path d="M1000 352 V305 H860 V270" class="line-dashed"/>
+  <text x="1007" y="314" class="arrow-label">리필 완료 POST</text>
+
+  <!-- Robot layer -->
+  <rect x="32" y="586" width="1536" height="258" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="55" y="618" class="band-label">로봇 실행</text>
+
+  <path d="M980 540 V625 H318 V665" class="line"/>
+  <text x="610" y="646" class="arrow-label">작업 큐 순차 실행</text>
+
+  <rect x="210" y="665" width="215" height="102" rx="8" fill="#ffffff" stroke="#e11d48" stroke-width="2"/>
+  <circle cx="244" cy="697" r="18" fill="#e11d48"/>
+  <text x="244" y="703" class="step-num">1</text>
+  <text x="274" y="703" class="box-title">약통 개봉</text>
+  <text x="244" y="739" class="box-copy">Opener · SPIN / PULL</text>
+
+  <rect x="470" y="665" width="215" height="102" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+  <circle cx="504" cy="697" r="18" fill="#7c3aed"/>
+  <text x="504" y="703" class="step-num">2</text>
+  <text x="534" y="703" class="box-title">조제기 리필</text>
+  <text x="504" y="739" class="box-copy">Pour Pills · 힘제어</text>
+
+  <rect x="730" y="665" width="235" height="102" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+  <circle cx="764" cy="697" r="18" fill="#16a34a"/>
+  <text x="764" y="703" class="step-num">3</text>
+  <text x="794" y="703" class="box-title">약 포장</text>
+  <text x="764" y="739" class="box-copy">스크래퍼 · 종이봉투</text>
+
+  <rect x="1010" y="650" width="185" height="132" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="1040" y="697" class="box-title">DSR_ROBOT2</text>
+  <text x="1040" y="726" class="box-copy">Service Client</text>
+  <text x="1040" y="751" class="small">move / force / IO</text>
+
+  <rect x="1230" y="650" width="180" height="132" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+  <text x="1254" y="697" class="box-title">dsr_controller2</text>
+  <text x="1254" y="726" class="box-copy">Service Server</text>
+  <text x="1254" y="751" class="small">로봇 명령 실행</text>
+
+  <rect x="1440" y="650" width="112" height="132" rx="8" fill="#1e293b" stroke="#0f172a" stroke-width="2"/>
+  <text x="1496" y="697" text-anchor="middle" class="white-title">M0609</text>
+  <text x="1496" y="727" text-anchor="middle" class="white-copy">Robot</text>
+  <text x="1496" y="752" text-anchor="middle" class="white-copy">+ Gripper</text>
+
+  <path d="M425 716 H470" class="line"/>
+  <path d="M685 716 H730" class="line"/>
+  <path d="M965 716 H1010" class="line-blue"/>
+  <path d="M1195 716 H1230" class="line-blue"/>
+  <path d="M1410 716 H1440" class="line-blue"/>
+
+  <text x="54" y="874" class="small">통신 형식: Backend ↔ Bridge = HTTP/JSON · ROS 노드 간 = Topic(String/Bool) · Robot 제어 = ROS 2 Service</text>
+</svg>

@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow-dark" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#dc2626"/>
+    </marker>
+    <style>
+      text { font-family: NanumGothic, sans-serif; letter-spacing: 0; }
+      .title { font-size: 34px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 16px; font-weight: 400; fill: #64748b; }
+      .zone-title { font-size: 18px; font-weight: 700; fill: #475569; }
+      .box-title { font-size: 20px; font-weight: 700; fill: #0f172a; }
+      .box-copy { font-size: 14px; font-weight: 400; fill: #475569; }
+      .small { font-size: 12px; font-weight: 400; fill: #64748b; }
+      .label { font-size: 13px; font-weight: 700; fill: #334155; }
+      .white-title { font-size: 20px; font-weight: 700; fill: #ffffff; }
+      .white-copy { font-size: 14px; font-weight: 400; fill: #dbeafe; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#ffffff"/>
+  <text x="54" y="58" class="title">약국 보조 로봇 네트워크 구성도</text>
+  <text x="55" y="88" class="subtitle">HTTP 기반 업무망, ROS 2 DDS 통신망, Doosan Controller 연결을 구분한 현재 구성</text>
+
+  <!-- Pharmacy LAN -->
+  <rect x="30" y="118" width="1540" height="480" rx="8" fill="#f8fafc" stroke="#dbe4ef" stroke-width="1.5"/>
+  <text x="54" y="151" class="zone-title">약국 LAN / Wi-Fi</text>
+  <text x="54" y="174" class="small">현재 확인값: ROS_DOMAIN_ID=26 · ROS_LOCALHOST_ONLY=0 · 모든 ROS PC의 RMW/방화벽/멀티캐스트 설정 일치 필요</text>
+
+  <!-- UI PC -->
+  <rect x="70" y="215" width="285" height="250" rx="7" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+  <rect x="70" y="215" width="10" height="250" rx="5" fill="#14b8a6"/>
+  <text x="105" y="253" class="box-title">운영자 / Front UI PC</text>
+  <line x1="105" y1="269" x2="324" y2="269" stroke="#cbd5e1"/>
+  <text x="105" y="298" class="box-copy">웹 브라우저</text>
+  <text x="105" y="326" class="box-copy">Flask + Socket.IO  :5000</text>
+  <text x="105" y="354" class="box-copy">ui_alarm_node (ROS 2)</text>
+  <rect x="105" y="378" width="220" height="55" rx="5" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="118" y="400" class="small">현재 UI 구독 토픽은 robot_total과</text>
+  <text x="118" y="419" class="small">이름/형식 정합화가 필요함</text>
+
+  <!-- Backend PC -->
+  <rect x="445" y="215" width="300" height="250" rx="7" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="478" y="253" class="box-title">Backend PC</text>
+  <text x="478" y="278" class="small">현재 코드 설정: 172.23.0.128</text>
+  <line x1="478" y1="292" x2="713" y2="292" stroke="#a5f3fc"/>
+  <text x="478" y="321" class="box-copy">Django REST API  :8000</text>
+  <text x="478" y="349" class="box-copy">/api/events/ · /api/medicine/</text>
+  <text x="478" y="377" class="box-copy">/api/prescriptions/</text>
+  <text x="478" y="405" class="box-copy">/api/tasks/refill/</text>
+  <text x="478" y="433" class="box-copy">/api/tasks/status/</text>
+
+  <!-- Robot PC -->
+  <rect x="835" y="198" width="390" height="284" rx="7" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+  <text x="870" y="237" class="white-title">Robot Control PC</text>
+  <text x="870" y="262" class="white-copy">Ubuntu 22.04 · ROS 2 Humble · namespace /dsr01</text>
+  <line x1="870" y1="279" x2="1190" y2="279" stroke="#5eead4"/>
+  <rect x="870" y="301" width="320" height="38" rx="5" fill="#115e59"/>
+  <text x="890" y="326" class="white-copy">task_manager_bridge · Backend GET → Topic</text>
+  <rect x="870" y="350" width="320" height="38" rx="5" fill="#115e59"/>
+  <text x="890" y="375" class="white-copy">robot_total · 작업 큐 / 상태 판단 / 순차 실행</text>
+  <rect x="870" y="399" width="153" height="48" rx="5" fill="#134e4a"/>
+  <text x="886" y="428" class="white-copy">DSR_ROBOT2</text>
+  <rect x="1037" y="399" width="153" height="48" rx="5" fill="#134e4a"/>
+  <text x="1053" y="428" class="white-copy">dsr_controller2</text>
+
+  <!-- Dispenser/HMI -->
+  <rect x="1320" y="215" width="210" height="250" rx="7" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="1351" y="253" class="box-title">조제기 / HMI</text>
+  <line x1="1351" y1="269" x2="1500" y2="269" stroke="#bfdbfe"/>
+  <text x="1351" y="302" class="box-copy">ROS 2 참여 장치</text>
+  <text x="1351" y="334" class="box-copy">scraper_ready</text>
+  <text x="1351" y="362" class="box-copy">dispensing_done</text>
+  <text x="1351" y="403" class="small">동일 Domain ID 및</text>
+  <text x="1351" y="422" class="small">DDS Discovery 필요</text>
+
+  <!-- LAN bus -->
+  <line x1="170" y1="532" x2="1430" y2="532" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/>
+  <text x="800" y="568" text-anchor="middle" class="label">업무망 HTTP/TCP + ROS 2 DDS/RTPS(UDP multicast 및 동적 포트)</text>
+  <line x1="213" y1="465" x2="213" y2="529" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="595" y1="465" x2="595" y2="529" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="1030" y1="482" x2="1030" y2="529" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="1425" y1="465" x2="1425" y2="529" stroke="#94a3b8" stroke-width="2"/>
+
+  <!-- Logical protocol arrows -->
+  <path d="M355 302 H445" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-dark)"/>
+  <text x="400" y="291" text-anchor="middle" class="label">HTTP</text>
+  <path d="M835 318 H745" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-dark)"/>
+  <text x="790" y="307" text-anchor="middle" class="label">GET/POST</text>
+  <path d="M1225 349 H1320" fill="none" stroke="#2563eb" stroke-width="2.7" marker-end="url(#arrow-blue)"/>
+  <path d="M1320 387 H1225" fill="none" stroke="#2563eb" stroke-width="2.7" stroke-dasharray="7 6" marker-end="url(#arrow-blue)"/>
+
+  <!-- External DB -->
+  <rect x="70" y="664" width="400" height="150" rx="7" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+  <text x="104" y="704" class="box-title">Supabase PostgreSQL</text>
+  <text x="104" y="734" class="box-copy">Cloud DB · PostgreSQL/TCP :5432</text>
+  <text x="104" y="762" class="box-copy">Medicine · Event · EventItem</text>
+  <text x="104" y="792" class="small">인터넷 구간 · 인증정보는 환경변수/Secret으로 관리</text>
+  <path d="M595 598 V626 H470 V700" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-dark)"/>
+  <text x="527" y="646" class="label">DB 연결 :5432</text>
+
+  <!-- Robot controller subnet -->
+  <rect x="720" y="635" width="830" height="195" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+  <text x="745" y="667" class="zone-title">로봇 제어 전용망 / 장치 연결</text>
+  <rect x="785" y="692" width="300" height="102" rx="7" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <text x="818" y="730" class="box-title">Doosan Controller</text>
+  <text x="818" y="757" class="box-copy">기본 host 192.168.137.100</text>
+  <text x="818" y="780" class="small">TCP :12345 · 실제 IP는 현장 확인</text>
+  <rect x="1210" y="692" width="275" height="102" rx="7" fill="#1e293b" stroke="#0f172a" stroke-width="2"/>
+  <text x="1246" y="731" class="white-title">M0609 + Gripper</text>
+  <text x="1246" y="760" class="white-copy">모션 · Force · Safety I/O · DI/DO</text>
+  <path d="M1030 598 V624 H935 V692" fill="none" stroke="#dc2626" stroke-width="2.7" marker-end="url(#arrow-red)"/>
+  <text x="1048" y="646" class="label">Controller TCP :12345</text>
+  <path d="M1085 743 H1210" fill="none" stroke="#dc2626" stroke-width="2.7" marker-end="url(#arrow-red)"/>
+  <text x="1148" y="731" text-anchor="middle" class="label">로봇 명령</text>
+
+  <!-- Legend -->
+  <line x1="70" y1="858" x2="118" y2="858" stroke="#334155" stroke-width="3"/>
+  <text x="128" y="863" class="small">HTTP / DB</text>
+  <line x1="245" y1="858" x2="293" y2="858" stroke="#2563eb" stroke-width="3"/>
+  <text x="303" y="863" class="small">ROS 2 Topic</text>
+  <line x1="440" y1="858" x2="488" y2="858" stroke="#dc2626" stroke-width="3"/>
+  <text x="498" y="863" class="small">Doosan Controller</text>
+  <text x="1525" y="863" text-anchor="end" class="small">※ 네트워크 주소는 코드/제조사 기본값 기준이며 현장 설정 확인 필요</text>
+</svg>

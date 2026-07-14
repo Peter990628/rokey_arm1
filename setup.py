@@ -38,6 +38,8 @@ setup(
             'test_tcp = rokey.test_tcp:main',
             'go_home = rokey.go_home:main',
             'test1 = rokey.test1:main',
+            'opener = rokey.opener:main',
+            'robot_total = rokey.robot_total:main',
         ],
     },
 )
