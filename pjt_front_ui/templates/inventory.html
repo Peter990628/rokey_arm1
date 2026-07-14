@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<table class="stock-table">
+  <thead>
+    <tr>
+      <th>💊 약 이름</th>
+      <th>📦 현재 수량</th>
+      <th>⚖️ 임계값</th>
+      <th>🚦 상태</th>
+    </tr>
+  </thead>
+  <tbody id="stockTableBody"></tbody>
+</table>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stock-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+    border: 3px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 4px 4px 0 var(--line);
+  }
+  .stock-table th {
+    text-align: left;
+    font-family: 'Jua', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--mint);
+    padding: 14px 20px;
+    border-bottom: 3px dashed var(--line);
+    background: var(--mint-bg);
+  }
+  .stock-table td {
+    padding: 16px 20px;
+    border-bottom: 2px dashed var(--line);
+    font-size: 18px;
+  }
+  .stock-table tr:last-child td { border-bottom: none; }
+  .stock-table .count { font-weight: 700; color: var(--mint); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const stockMap = new Map();
+  const initialInventory = {{ inventory | tojson }};
+  initialInventory.forEach(item => stockMap.set(item.med_id, item));
+
+  const tbody = document.getElementById('stockTableBody');
+
+  function renderStock() {
+    const rows = [...stockMap.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-hint">🗒️ 등록된 약품이 없어요.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(item => {
+      const low = item.count <= (item.threshold ?? 5);
+      return `
+        <tr>
+          <td>💊 ${item.name}</td>
+          <td class="mono count">${item.count}</td>
+          <td class="mono">${item.threshold ?? 5}</td>
+          <td>${low
+            ? '<span class="badge low-stock"><span class="dot"></span>⚠️ 곧 부족</span>'
+            : '<span class="badge production"><span class="dot" style="animation:none;"></span>✅ 정상</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  socket.on('remaining_count', (payload) => {
+    stockMap.set(payload.med_id, {
+      med_id: payload.med_id,
+      name: payload.med_name || payload.med_id,
+      count: payload.count,
+      threshold: payload.threshold,
+    });
+    renderStock();
+  });
+
+  renderStock();
+</script>
+{% endblock %}

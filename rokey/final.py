@@ -799,6 +799,22 @@ class PourPills:
 
         self.get_logger().info("=== 적재소 약통 파지 시퀀스 ===")
 
+        try:
+            self.release_force()
+        except Exception as e:
+            self.get_logger().warning(
+                f"힘제어 해제 생략: {e}"
+            )
+
+        try:
+            self.release_compliance_ctrl()
+        except Exception as e:
+            self.get_logger().warning(
+                f"순응제어 해제 생략: {e}"
+            )
+
+        self.wait(0.3)
+
         self.movejx(
             self.X_STORAGE_APPROACH,
             vel=self.vel,
@@ -813,9 +829,7 @@ class PourPills:
             ref=self.DR_BASE,
             sol=2,
         )
-
-        self.release_force()
-        self.release_compliance_ctrl()
+        
         self.movel(
             self.posx(0, 0, -27, 0, 0, 0),
             vel=20,
@@ -929,6 +943,22 @@ class PourPills:
             sol=2,
         )
         self.wait(0.5)
+
+        try:
+            self.release_force()
+        except Exception as e:
+            self.get_logger().warning(
+                f"힘제어 해제 생략: {e}"
+            )
+
+        try:
+            self.release_compliance_ctrl()
+        except Exception as e:
+            self.get_logger().warning(
+                f"순응제어 해제 생략: {e}"
+            )
+
+        self.wait(0.3)
 
         if not self.pull_down():
             self.movel(
@@ -1094,6 +1124,22 @@ class PourPills:
             ref=self.DR_BASE,
             sol=0,
         )
+
+        try:
+            self.release_force()
+        except Exception as e:
+            self.get_logger().warning(
+                f"힘제어 해제 생략: {e}"
+            )
+
+        try:
+            self.release_compliance_ctrl()
+        except Exception as e:
+            self.get_logger().warning(
+                f"순응제어 해제 생략: {e}"
+            )
+
+        self.wait(0.3)
         self.movel(
             self.posx(0, 0, -100, 0, 0, 0),
             vel=15,
