@@ -1,0 +1,8 @@
+[console_scripts]
+manipulator2.py = rokey.manipulaotor2:main
+pour_pills_rotate = rokey.pour_pills_rotate:main
+task_manager_bridge.py = rokey.task_manager_bridge:main
+task_manager_fianl.py = rokey.task_manager_fianl:main
+task_manager_test.py = rokey.task_manager_test:main
+test1 = rokey.test1:main
+

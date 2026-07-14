@@ -1,0 +1,57 @@
+[0.861s] Invoking command in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1': PYTHONPATH=/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/rokey build --build-base /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build install --record /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/install.log --install-scripts $base/lib/rokey --single-version-externally-managed install_data
+[1.186s] running egg_info
+[1.186s] creating build/rokey/rokey.egg-info
+[1.186s] writing build/rokey/rokey.egg-info/PKG-INFO
+[1.186s] writing dependency_links to build/rokey/rokey.egg-info/dependency_links.txt
+[1.186s] writing entry points to build/rokey/rokey.egg-info/entry_points.txt
+[1.186s] writing requirements to build/rokey/rokey.egg-info/requires.txt
+[1.186s] writing top-level names to build/rokey/rokey.egg-info/top_level.txt
+[1.187s] writing manifest file 'build/rokey/rokey.egg-info/SOURCES.txt'
+[1.187s] reading manifest file 'build/rokey/rokey.egg-info/SOURCES.txt'
+[1.188s] writing manifest file 'build/rokey/rokey.egg-info/SOURCES.txt'
+[1.188s] running build
+[1.188s] running build_py
+[1.188s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build
+[1.188s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib
+[1.188s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/task_manager_bridge_final.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/test1.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/__init__.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/task_manager_bridge.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/task_manager_test.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/manipulator2.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] copying rokey/pour_pills_rotate.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey
+[1.189s] running install
+[1.189s] running install_lib
+[1.189s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.189s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/task_manager_bridge_final.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/test1.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/__init__.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/task_manager_bridge.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/task_manager_test.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/manipulator2.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.190s] copying /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build/lib/rokey/pour_pills_rotate.py -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey
+[1.191s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/task_manager_bridge_final.py to task_manager_bridge_final.cpython-310.pyc
+[1.193s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/test1.py to test1.cpython-310.pyc
+[1.199s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/__init__.py to __init__.cpython-310.pyc
+[1.199s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/task_manager_bridge.py to task_manager_bridge.cpython-310.pyc
+[1.200s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/task_manager_test.py to task_manager_test.cpython-310.pyc
+[1.201s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/manipulator2.py to manipulator2.cpython-310.pyc
+[1.203s] byte-compiling /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey/pour_pills_rotate.py to pour_pills_rotate.cpython-310.pyc
+[1.207s] running install_data
+[1.208s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/ament_index
+[1.208s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/ament_index/resource_index
+[1.208s] creating /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/ament_index/resource_index/packages
+[1.208s] copying resource/rokey -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/ament_index/resource_index/packages
+[1.208s] copying package.xml -> /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey
+[1.208s] running install_egg_info
+[1.210s] Copying build/rokey/rokey.egg-info to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages/rokey-0.0.0-py3.10.egg-info
+[1.210s] running install_scripts
+[1.232s] Installing manipulator2.py script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] Installing pour_pills_rotate script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] Installing task_manager_bridge.py script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] Installing task_manager_fianl.py script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] Installing task_manager_test.py script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] Installing test1 script to /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/rokey
+[1.232s] writing list of installed files to '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/install.log'
+[1.248s] Invoked command in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1' returned '0': PYTHONPATH=/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/rokey build --build-base /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build install --record /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/install.log --install-scripts $base/lib/rokey --single-version-externally-managed install_data

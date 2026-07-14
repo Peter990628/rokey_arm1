@@ -1,0 +1,94 @@
+[0.160s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--packages-select', 'rokey']
+[0.160s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=16, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=['rokey'], packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x721a5c74e050>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x721a5c9f7820>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x721a5c9f7820>>, mixin_verb=('build',))
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.371s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.371s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1'
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.371s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.381s] DEBUG:colcon.colcon_core.package_identification:Package '.' with type 'ros.ament_python' and name 'rokey'
+[0.381s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.381s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.381s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.381s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.381s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.403s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[0.403s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[0.410s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 29 installed packages in /home/swyc/ws_cobot_pjt/ws_dsr/install
+[0.410s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 3 installed packages in /home/swyc/rokey_ws/install
+[0.415s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 363 installed packages in /home/swyc/install
+[0.417s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 17 installed packages in /home/swyc/turtlebot4_ws/install
+[0.419s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 436 installed packages in /opt/ros/humble
+[0.425s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_args' from command line to 'None'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_target' from command line to 'None'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_clean_cache' from command line to 'False'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_clean_first' from command line to 'False'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'cmake_force_configure' from command line to 'False'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'ament_cmake_args' from command line to 'None'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'catkin_cmake_args' from command line to 'None'
+[0.472s] Level 5:colcon.colcon_core.verb:set package 'rokey' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.472s] DEBUG:colcon.colcon_core.verb:Building package 'rokey' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey', 'merge_install': False, 'path': '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1', 'symlink_install': False, 'test_result_base': None}
+[0.472s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.473s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.473s] INFO:colcon.colcon_ros.task.ament_python.build:Building ROS package in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1' with build type 'ament_python'
+[0.473s] Level 1:colcon.colcon_core.shell:create_environment_hook('rokey', 'ament_prefix_path')
+[0.476s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.477s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/ament_prefix_path.ps1'
+[0.477s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/ament_prefix_path.dsv'
+[0.477s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/ament_prefix_path.sh'
+[0.478s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.478s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.845s] INFO:colcon.colcon_core.task.python.build:Building Python package in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1'
+[0.845s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.845s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[1.327s] DEBUG:colcon.colcon_core.task.python.build:Available setuptools commands: build_ext, alias, upload, compile_catalog, clean, upload_docs, dist_info, bdist_dumb, symlink_data, bdist_wheel, bdist_rpm, egg_info, build_clib, sdist, develop, test, register, nosetests, build, saveopts, install_scripts, check, rotate, bdist_egg, install_egg_info, extract_messages, install_lib, build_py, build_scripts, bdist, install, install_headers, setopt, init_catalog, update_catalog, install_data, easy_install
+[1.336s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1': PYTHONPATH=/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/rokey build --build-base /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build install --record /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/install.log --install-scripts $base/lib/rokey --single-version-externally-managed install_data
+[1.723s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1' returned '0': PYTHONPATH=/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/rokey build --build-base /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/build install --record /home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/build/rokey/install.log --install-scripts $base/lib/rokey --single-version-externally-managed install_data
+[1.730s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey' for CMake module files
+[1.730s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey' for CMake config files
+[1.731s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib'
+[1.731s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/bin'
+[1.731s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/pkgconfig/rokey.pc'
+[1.732s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/lib/python3.10/site-packages'
+[1.732s] Level 1:colcon.colcon_core.shell:create_environment_hook('rokey', 'pythonpath')
+[1.732s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/pythonpath.ps1'
+[1.733s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/pythonpath.dsv'
+[1.733s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/hook/pythonpath.sh'
+[1.734s] Level 1:colcon.colcon_core.environment:checking '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/bin'
+[1.734s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(rokey)
+[1.734s] INFO:colcon.colcon_core.shell:Creating package script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/package.ps1'
+[1.735s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/package.dsv'
+[1.735s] INFO:colcon.colcon_core.shell:Creating package script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/package.sh'
+[1.736s] INFO:colcon.colcon_core.shell:Creating package script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/package.bash'
+[1.736s] INFO:colcon.colcon_core.shell:Creating package script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/rokey/package.zsh'
+[1.736s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/rokey/share/colcon-core/packages/rokey)
+[1.736s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[1.737s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[1.737s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[1.737s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[1.743s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[1.743s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[1.743s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[1.753s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[1.753s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/local_setup.ps1'
+[1.754s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/_local_setup_util_ps1.py'
+[1.755s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/setup.ps1'
+[1.762s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/local_setup.sh'
+[1.762s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/_local_setup_util_sh.py'
+[1.762s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/setup.sh'
+[1.769s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/local_setup.bash'
+[1.769s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/setup.bash'
+[1.776s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/local_setup.zsh'
+[1.776s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/swyc/ws_cobot_pjt/ws_dsr/src/projects/rokey_arm1/install/setup.zsh'

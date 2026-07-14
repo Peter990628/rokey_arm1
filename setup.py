@@ -29,6 +29,7 @@ setup(
             'task_manager_bridge.py = rokey.task_manager_bridge:main',
             'task_manager_test.py = rokey.task_manager_test:main',
             'task_manager_fianl.py = rokey.task_manager_fianl:main',
+            'manipulator2.py = rokey.manipulator2:main'
             ],
         },
     )

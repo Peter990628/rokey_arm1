@@ -245,7 +245,7 @@ class PourPills:
     def define_positions(self):
         # 적재소 근처 접근 위치
         self.X_STORAGE_APPROACH = self.posx(
-            357.12, 219.79, 400.52,
+            357.12, 219.79, 200.52,
             96.00, 176.96, 105.65,
         )
 
@@ -752,13 +752,21 @@ class PourPills:
         self.grip()
 
         self.movel(
-            self.posx(-110, 0, 0, 0, 0, 0),
+            self.posx(-125, 0, 0, 0, 0, 0),
             vel=20,
             acc=20,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
         self.release()
+
+        self.movel(
+            self.posx(-30, 0, 0, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
 
     
 
@@ -769,14 +777,6 @@ class PourPills:
             "서랍 열기 완료: "
             f"x={x:.2f}, y={y:.2f}, z={z:.2f}, "
             f"rx={rx:.2f}, ry={ry:.2f}, rz={rz:.2f}"
-        )
-
-        self.movel(
-            self.posx(-30, 0, 0, 0, 0, 0),
-            vel=20,
-            acc=20,
-            ref=self.DR_BASE,
-            mod=self.DR_MV_MOD_REL,
         )
 
         # 열린 서랍에서 약 보관 위치로 이동하기 전에 안전 Joint로 복귀한다.
@@ -1870,20 +1870,16 @@ class PourPills:
             ref=self.DR_BASE,
             sol=2,
         )
-
+        
         self.grip()
 
         self.movel(
-            self.posx(110, 0, 0, 0, 0, 0),
+            self.posx(125, 0, 0, 0, 0, 0),
             vel=10,
             acc=10,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
-
-        self.release()
-
-        self.movej(self.posj(0,0,90,0,90,0), vel =20, acc=20)
 
         self.get_logger().info("서랍 닫기 완료")
 

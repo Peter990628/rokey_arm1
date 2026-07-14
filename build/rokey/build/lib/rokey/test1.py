@@ -14,7 +14,7 @@ ROBOT_ID = "dsr01"
 ROBOT_MODEL = "m0609"
 
 TCP_NAME = "Tool_v1"
-TOOL_NAME = "Tool Weight"
+TOOL_NAME = "Tool Weight_1"
 
 VELOCITY = 50
 ACC = 50
@@ -23,6 +23,19 @@ ON = 1
 OFF = 0
 
 MEDICINE_TOPIC = "/dsr01/pharmacy/refill_required_medicine"
+
+# 버추얼 로봇 + task manager/DB 연동 모드
+VIRTUAL_MODE = os.getenv("PHARMACY_VIRTUAL_MODE", "true").lower() in (
+    "1", "true", "yes", "on"
+)
+
+# True이면 가상 동작 완료 후 DB에 리필 완료 POST까지 전송한다.
+SEND_DONE_POST = os.getenv("PHARMACY_SEND_DONE_POST", "true").lower() in (
+    "1", "true", "yes", "on"
+)
+
+# DB가 같은 PC에서 실행되면 127.0.0.1을 사용한다.
+# 다른 PC라면 실행 전에 PHARMACY_DONE_URL 환경변수로 변경할 수 있다.
 DONE_URL = os.getenv(
     "PHARMACY_DONE_URL",
     "http://127.0.0.1:8000/api/tasks/refill/",
@@ -81,16 +94,8 @@ BOTTLE_GRIP_TIMEOUT_SEC = 2.0
 # 입력 확인 주기
 BOTTLE_GRIP_CHECK_INTERVAL_SEC = 0.05
 
-# 임시 설정: 실제 파지 DI 확인을 사용하지 않고 그리퍼 닫기 후 바로 진행
-USE_BOTTLE_GRIP_SENSOR = False
-
-# 같은 EventItem 작업의 반복 publish를 막는 시간
+# task manager가 같은 작업을 반복 publish할 때 재등록을 막는 시간
 RECENT_TASK_IGNORE_SEC = 30.0
-
-# 완료 직후 DDS 큐에 남아 있을 수 있는 동일 약의 오래된 메시지를 잠시 무시한다.
-# 새 Event가 정말 REFILL_REQUIRED 상태라면 Task Manager가 계속 publish하므로,
-# 이 시간이 지난 뒤 정상적으로 다시 작업에 등록된다.
-RECENT_MEDICINE_IGNORE_SEC = 3.0
 
 
 # 반드시 DSR_ROBOT2 import 전에 설정
@@ -165,7 +170,6 @@ class PourPills:
         self.queued_task_keys = set()
         self.active_task_key = None
         self.recently_completed_task_times = {}
-        self.recently_completed_medicine_times = {}
 
         self.medicine_id = None
         self.medicine_name = None
@@ -233,6 +237,13 @@ class PourPills:
         self.create_subscriptions()
         self.init_robot()
 
+        self.get_logger().info(
+            "실행 모드: "
+            f"VIRTUAL_MODE={VIRTUAL_MODE}, "
+            f"SEND_DONE_POST={SEND_DONE_POST}, "
+            f"DONE_URL={DONE_URL}"
+        )
+
     # --------------------------------------------------
     # Logger
     # --------------------------------------------------
@@ -245,7 +256,7 @@ class PourPills:
     def define_positions(self):
         # 적재소 근처 접근 위치
         self.X_STORAGE_APPROACH = self.posx(
-            357.12, 219.79, 400.52,
+            357.12, 219.79, 200.52,
             96.00, 176.96, 105.65,
         )
 
@@ -308,54 +319,14 @@ class PourPills:
 
     @staticmethod
     def _make_task_key(task):
-        """
-        같은 polling 메시지는 중복으로 넣지 않되,
-        같은 약이 새로운 EventItem으로 다시 들어오면 새 작업으로 구분한다.
-
-        우선순위:
-        1. source_event_item_ids
-        2. source_event_ids + medicine_name
-        3. medicine_name (이전 Task Manager 호환용)
-        """
         if not isinstance(task, dict):
             return None
 
+        medicine_number = task.get("medicine_number")
+        if medicine_number is not None:
+            return f"medicine_number:{medicine_number}"
+
         medicine_name = task.get("medicine_name")
-        if isinstance(medicine_name, str):
-            medicine_name = medicine_name.strip()
-        else:
-            medicine_name = ""
-
-        item_ids = task.get("source_event_item_ids")
-        if isinstance(item_ids, list):
-            normalized_item_ids = sorted(
-                {
-                    str(item_id)
-                    for item_id in item_ids
-                    if item_id is not None
-                }
-            )
-            if normalized_item_ids:
-                return (
-                    f"medicine_name:{medicine_name}|"
-                    f"event_items:{','.join(normalized_item_ids)}"
-                )
-
-        event_ids = task.get("source_event_ids")
-        if isinstance(event_ids, list):
-            normalized_event_ids = sorted(
-                {
-                    str(event_id)
-                    for event_id in event_ids
-                    if event_id is not None
-                }
-            )
-            if normalized_event_ids:
-                return (
-                    f"medicine_name:{medicine_name}|"
-                    f"events:{','.join(normalized_event_ids)}"
-                )
-
         if medicine_name:
             return f"medicine_name:{medicine_name}"
 
@@ -363,23 +334,13 @@ class PourPills:
 
     def _purge_old_completed_task_keys(self):
         now = time.monotonic()
-
-        expired_task_keys = [
+        expired = [
             key
             for key, completed_at in self.recently_completed_task_times.items()
             if now - completed_at >= RECENT_TASK_IGNORE_SEC
         ]
-        for key in expired_task_keys:
+        for key in expired:
             del self.recently_completed_task_times[key]
-
-        expired_medicine_names = [
-            medicine_name
-            for medicine_name, completed_at
-            in self.recently_completed_medicine_times.items()
-            if now - completed_at >= RECENT_MEDICINE_IGNORE_SEC
-        ]
-        for medicine_name in expired_medicine_names:
-            del self.recently_completed_medicine_times[medicine_name]
 
     def dispenser_pose_callback(self, msg):
         try:
@@ -409,17 +370,10 @@ class PourPills:
                     skipped_count += 1
                     continue
 
-                medicine_name = task.get("medicine_name")
-                if isinstance(medicine_name, str):
-                    medicine_name = medicine_name.strip()
-                else:
-                    medicine_name = ""
-
                 if (
                     task_key in self.queued_task_keys
                     or task_key == self.active_task_key
                     or task_key in self.recently_completed_task_times
-                    or medicine_name in self.recently_completed_medicine_times
                 ):
                     skipped_count += 1
                     continue
@@ -639,15 +593,14 @@ class PourPills:
         timeout_sec=BOTTLE_GRIP_TIMEOUT_SEC,
     ):
         """
-        약통 파지 완료 디지털 입력을 timeout 동안 확인한다.
-
-        USE_BOTTLE_GRIP_SENSOR가 False이면 DI 확인을 생략하고
-        그리퍼 닫기 동작이 끝난 뒤 바로 성공으로 처리한다.
+        실제 모드에서는 DI로 파지를 확인하고,
+        버추얼 모드에서는 그리퍼 명령 성공으로 간주한다.
         """
-        if not USE_BOTTLE_GRIP_SENSOR:
-            self.get_logger().warning(
-                "약통 파지 DI 확인 비활성화: 그리퍼 닫힘을 성공으로 간주함"
+        if VIRTUAL_MODE:
+            self.get_logger().info(
+                "버추얼 모드: 약통 파지 DI 확인 생략"
             )
+            self.wait(0.2)
             return
 
         start_time = time.monotonic()
@@ -746,21 +699,20 @@ class PourPills:
         self.movej(
             self.X_DRAWER,
             vel=self.vel,
-            acc=self.acc,
+            acc=self.acc
         )
 
         self.grip()
 
         self.movel(
-            self.posx(-110, 0, 0, 0, 0, 0),
+            self.posx(-125, 0, 0, 0, 0, 0),
             vel=20,
             acc=20,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
-        self.release()
 
-    
+        self.release()
 
         x, y, z, rx, ry, rz = self.get_current_pos_base()
         self.X_DRAWER_CLOSED = self.posx(x, y, z, rx, ry, rz)
@@ -769,14 +721,6 @@ class PourPills:
             "서랍 열기 완료: "
             f"x={x:.2f}, y={y:.2f}, z={z:.2f}, "
             f"rx={rx:.2f}, ry={ry:.2f}, rz={rz:.2f}"
-        )
-
-        self.movel(
-            self.posx(-30, 0, 0, 0, 0, 0),
-            vel=20,
-            acc=20,
-            ref=self.DR_BASE,
-            mod=self.DR_MV_MOD_REL,
         )
 
         # 열린 서랍에서 약 보관 위치로 이동하기 전에 안전 Joint로 복귀한다.
@@ -841,10 +785,23 @@ class PourPills:
     def pull_down(self):
         self.get_logger().info("거치대에 약통 가압 삽입 시작")
 
+        if VIRTUAL_MODE:
+            self.get_logger().info(
+                "버추얼 모드: 힘제어 대신 BASE Z축 21 mm 하강"
+            )
+            self.movel(
+                self.posx(0, 0, -21, 0, 0, 0),
+                vel=5,
+                acc=5,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            return True
+
         compliance_started = False
         force_started = False
         target_z = 29.93
-        z_tolerance = 2.0
+        z_tolerance = 1.0
         start_time = time.monotonic()
 
         try:
@@ -855,7 +812,7 @@ class PourPills:
             self.wait(0.5)
 
             self.set_desired_force(
-                fd=[0, 0, -45, 0, 0, 0],
+                fd=[0, 0, -35, 0, 0, 0],
                 dir=[0, 0, 1, 0, 0, 0],
                 mod=self.DR_FC_MOD_REL,
             )
@@ -871,7 +828,7 @@ class PourPills:
                     )
                     return True
 
-                if time.monotonic() - start_time > 30.0:
+                if time.monotonic() - start_time > 5.0:
                     self.get_logger().error(
                         "거치대 안착 시간 초과. 거치대 상태를 확인해야 함"
                     )
@@ -975,6 +932,20 @@ class PourPills:
         self.wait(0.5)
 
         self.get_logger().info("병따개 X축 접촉 탐색 시작")
+
+        if VIRTUAL_MODE:
+            self.get_logger().info(
+                "버추얼 모드: 힘 접촉 탐색 대신 BASE X축 44 mm 이동"
+            )
+            self.movel(
+                self.posx(-44, 0, 0, 0, 0, 0),
+                vel=5,
+                acc=5,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            return True
+
         last_force_x = 0.0
 
         for _ in range(100):
@@ -1089,7 +1060,7 @@ class PourPills:
             sol=0,
         )
         self.movel(
-            self.posx(0, 0, -100, 0, 0, 0),
+            self.posx(0, 0, -130, 0, 0, 0),
             vel=15,
             acc=15,
             ref=self.DR_BASE,
@@ -1097,7 +1068,7 @@ class PourPills:
         )
         self.release()
         self.movel(
-            self.posx(0, 0, 100, 0, 0, 0),
+            self.posx(0, 0, 130, 0, 0, 0),
             vel=30,
             acc=30,
             ref=self.DR_BASE,
@@ -1155,6 +1126,41 @@ class PourPills:
     # --------------------------------------------------
     def spin_open(self):
         self.get_logger().info("라쳇 방식 spin 뚜껑 열기 시작")
+
+        if VIRTUAL_MODE:
+            self.get_logger().info(
+                "버추얼 모드: 힘제어 및 뚜껑 분리 판정 생략"
+            )
+
+            for _ in range(3):
+                self.movel(
+                    self.posx(0, 0, 0, 0, 0, -10),
+                    vel=20,
+                    acc=20,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+
+            for _ in range(2):
+                self.movel(
+                    self.posx(0, 0, 0, 0, 0, -90),
+                    vel=20,
+                    acc=20,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+
+            self.movel(
+                self.posx(0, 0, -40, 0, 0, 0),
+                vel=15,
+                acc=15,
+                ref=self.DR_TOOL,
+                mod=self.DR_MV_MOD_REL,
+            )
+            self.get_logger().info(
+                "버추얼 모드: spin 뚜껑 분리 성공으로 처리"
+            )
+            return True
 
         max_attempts = 5
         compliance_started = False
@@ -1485,6 +1491,19 @@ class PourPills:
         self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
 
     def lift_medicine_with_force(self):
+        if VIRTUAL_MODE:
+            self.get_logger().info(
+                "버추얼 모드: 힘제어 대신 BASE Z축 40 mm 상승"
+            )
+            self.movel(
+                self.posx(0, 0, MEDICINE_LIFT_DISTANCE, 0, 0, 0),
+                vel=10,
+                acc=10,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            return
+
         start_pose = self.get_current_pos_base()
         start_z = start_pose[2]
 
@@ -1871,19 +1890,13 @@ class PourPills:
             sol=2,
         )
 
-        self.grip()
-
         self.movel(
-            self.posx(110, 0, 0, 0, 0, 0),
+            self.posx(125, 0, 0, 0, 0, 0),
             vel=10,
             acc=10,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
-
-        self.release()
-
-        self.movej(self.posj(0,0,90,0,90,0), vel =20, acc=20)
 
         self.get_logger().info("서랍 닫기 완료")
 
@@ -1949,7 +1962,14 @@ class PourPills:
         self.pour_tweezer()
         self.move_trash()
         self.close_drawer()
-        self.notify_done()
+
+        if SEND_DONE_POST:
+            self.notify_done()
+        else:
+            self.get_logger().info(
+                "SEND_DONE_POST=False: DB 완료 POST 생략"
+            )
+
         self.get_logger().info("작업 완료")
 
     # --------------------------------------------------
@@ -1996,17 +2016,10 @@ class PourPills:
                         f"{self.medicine_name}"
                     )
 
-                    completed_at = time.monotonic()
-
                     if task_key is not None:
                         self.recently_completed_task_times[task_key] = (
-                            completed_at
+                            time.monotonic()
                         )
-
-                    if self.medicine_name:
-                        self.recently_completed_medicine_times[
-                            self.medicine_name.strip()
-                        ] = completed_at
                 except GraspError as e:
                     self.get_logger().error(
                         "약통 파지 작업을 계속할 수 없어 전체 작업 중단: "
