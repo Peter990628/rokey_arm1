@@ -814,6 +814,8 @@ class PourPills:
             sol=2,
         )
 
+        self.release_force()
+        self.release_compliance_ctrl()
         self.movel(
             self.posx(0, 0, -27, 0, 0, 0),
             vel=20,
