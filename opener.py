@@ -1,6 +1,7 @@
 import rclpy
 import DR_init
 from time import sleep
+import time
 import threading
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -97,6 +98,8 @@ class Opener(Node):
 
         self.X_LOCK_RETURN = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.bottle_tip_offset_tcp = [0.0, 0.0, 75]
+
+        self.lid_type = None
 
         self.define_positions()
 
@@ -508,23 +511,28 @@ class Opener(Node):
         self.wait(0.5)
 
         target_z = 29.93         
-        z_tolerance = 1.0        
+        z_tolerance = 1.0    
+        start_time = time.time()    
 
         while True:
-            current_pos = self.get_current_posx(ref=self.DR_BASE)[0]
-            # current_force = self.get_tool_force(ref=self.DR_BASE)
+            if time.time() - start_time > 5.0:
+                self.get_logger().error("<Timeout> 거치대 상태를 확인하세요.")
+                self.release_compliance_ctrl()
+                self.release_force()
+                self.movel(self.posx(0, 0, 50, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+                return False
             
+            current_pos = self.get_current_posx(ref=self.DR_BASE)[0]        
             current_z = current_pos[2]
-            # current_fz = abs(current_force[2]) 
             
             condition_pos_met = abs(current_z - target_z) <= z_tolerance
             
             if condition_pos_met:
-                self.node.get_logger().info(f"=> 안착 조건 100% 충족")
+                self.node.get_logger().info(f"=> 안착 조건 충족")
                 self.release_compliance_ctrl()
                 self.release_force()
 
-                break
+                return True
 
             sleep(0.02)
 
@@ -537,6 +545,37 @@ class Opener(Node):
 
         self.movej(self.posj(0, 0, 0, 0, 0, -17), vel=3, acc=1, mod=self.DR_MV_MOD_REL)
         self.wait(0.5)
+
+        # 2. 충돌 임계값 설정 (노이즈를 고려해 적절히 설정, 필요시 튜닝)
+        torque_threshold = 10.0  # Mz (Z축 회전 꼬임 저항)
+        force_threshold = 30.0   # Fx, Fy (수평 밀림 저항)
+
+        # 3. 로봇이 회전하는 동안 실시간 힘/토크 감시
+        while self.check_motion() != 0:
+            current_force = self.get_tool_force(ref=self.DR_TOOL)
+            
+            # current_force[0], [1]은 X,Y 밀리는 힘 / [5]는 Z축 비틀림 저항(토크)
+            if abs(current_force[5]) > torque_threshold or abs(current_force[0]) > force_threshold or abs(current_force[1]) > force_threshold:
+                # (1) 즉시 급정지
+                self.stop(self.DR_QSTOP)
+                self.get_logger().error(f"[예외] 락킹 중 비정상적인 끼임(Jamming) 감지! 즉시 회전을 중단합니다.")
+                
+                # (2) 락킹을 풀기 위해 반대(시계) 방향으로 살짝 회전
+                self.get_logger().info("끼임 해제를 위해 시계 방향으로 5도 후진합니다.")
+                self.movej(self.posj(0, 0, 0, 0, 0, 5), vel=5, acc=5, mod=self.DR_MV_MOD_REL)
+                self.wait(0.5)
+
+                # (3) 안전 상단 고도로 대피 (약통을 그대로 들고 올라감)
+                self.get_logger().info("안전 고도로 로봇을 대피시킵니다.")
+                self.movel(self.posx(0, 0, 50, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+                
+                return False  # 예외 발생으로 실패 반환
+            
+            sleep(0.01) # CPU 과부하 방지
+
+        self.wait(0.5)
+        self.get_logger().info("=> 거치대 락킹 성공")
+        return True
 
     # --------------------------------------------------
     # 약통 고정
@@ -591,39 +630,34 @@ class Opener(Node):
         self.wait(0.5)
 
         found_contact = False
-
         self.node.get_logger().info("X축 방향 탐색 시작")
 
         for _ in range(100):
-
             current_force = self.get_tool_force(ref=self.DR_BASE)
-            self.node.get_logger().info(f"현재 force ({current_force[0]:.2f}N)")
-
+            self.get_logger().info(f"현재 force ({current_force[0]:.2f}N)")
+            
             if current_force[0] > 0:
                 found_contact = True
-                self.node.get_logger().info(
-                    f"X축 충돌 감지 ({current_force[0]:.2f}N)"
-                )
+                self.get_logger().info(f"X축 충돌(뚜껑) 감지 ({current_force[0]:.2f}N)")
                 break
 
-            self.movel(
-                self.posx(-2.0, 0, 0, 0, 0, 0),
-                vel=5,
-                acc=5,
-                ref=self.DR_BASE,
-                mod=self.DR_MV_MOD_REL,
-            )
-
+            self.movel(self.posx(-2.0, 0, 0, 0, 0, 0), vel=5, acc=5, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
             sleep(0.05)
 
-        if not found_contact:
-            self.node.get_logger().error("뚜껑을 찾지 못했습니다.")
+        self.node.get_logger().info(f"현재 force ({current_force[0]:.2f}N)")
 
+        if not found_contact:
+                self.get_logger().error("[예외] 뚜껑 탐색 실패. 뚜껑 위치가 너무 멀거나 약통이 없습니다.")
+                return False # 실패 여부를 반환하여 다음 동작 취소 유도
+        return True
     
     # (3) 뚜껑에 병따개 달기
-    def pour_tweezer(self):
-        self.grip()
+    def opener_tweezer(self):
+
+        # self.grip()
+
         """활성 TCP를 바꾸지 않고 DB의 약병 끝점 오프셋을 중심으로 붓는다."""
+
         if self.bottle_tip_offset_tcp is None:
             raise RuntimeError("약병 끝점 오프셋이 설정되지 않음")
 
@@ -702,6 +736,9 @@ class Opener(Node):
         # (1)-2 병따개 그립
         self.grip()
         
+        self.movel(self.posx(0, 0, 130, 0, 0, 0), vel=30, acc=30, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+        self.X_OPENER_RETURN = self.get_current_posx(ref=self.DR_BASE)[0]
+        
         # (1)-3 병따개 위로 꺼내기
         self.movel(
             self.posx(0, 0, 130, 0, 0, 0), vel=30, acc=30, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL
@@ -712,21 +749,21 @@ class Opener(Node):
         self.X_OPENER_RETURN = self.get_current_posx(ref=self.DR_BASE)[0]
 
         # (2) 당겨서 뚜껑 열기
-        self.pull_lid_open()
+        if not self.pull_lid_open():
+            self.get_logger().error("탐색 실패로 작업을 취소하고 툴을 반납합니다.")
+            self._return_opener_safely()
+            return False
 
         # (3) 뚜껑에 병따개 달기
-        self.pour_tweezer()
+        if not self.pour_tweezer():
+            self.get_logger().error("병따개 체결 실패로 작업을 취소합니다.")
+            self._return_opener_safely()
+            return False
 
         # (4) 병따개로 뚜껑 따기
         self.movel(self.posx(0, 0, -150, 0, 0, 0), vel=60, acc=60, ref=self.DR_TOOL, mod=self.DR_MV_MOD_REL)
-
-        # (5) 병따개 제자리에 가져다 놓기
-        self.movejx(self.X_OPENER_RETURN, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=0)
-        self.movel(self.posx(0, 0, -100, 0, 0, 0), vel=15, acc=15, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
-        
-        self.wait(0.5)
-
-        self.release()
+        self._return_opener_safely()
+        return True
 
     # --------------------------------------------------
     # 돌려서 뚜껑 열기 필요한 함수 정의
@@ -776,7 +813,7 @@ class Opener(Node):
             is_opened = True
             moved_z = 0
             self.node.get_logger().info("위로 당겨서 뚜껑 분리 상태를 확인합니다.")
-            for step in range(1):  # 2mm씩 최대 5번 (총 10mm) 조심스럽게 당겨봅니다
+            for step in range(1): 
                 self.node.get_logger().info(f"{step+1}번째 확인")
                 # 툴 기준 -Z (위쪽) 방향으로 이동
                 self.movel(self.posx(0, 0, -1, 0, 0, 0), vel=15, acc=15, ref=self.DR_TOOL, mod=self.DR_MV_MOD_REL)
@@ -827,6 +864,17 @@ class Opener(Node):
 
         self.node.get_logger().info("약통 뚜껑 버리기 완료")
 
+    # 예외 처리 함수
+    def _return_opener_safely(self):
+
+        """병따개를 안전하게 반환하는 헬퍼 함수"""
+
+        self.movejx(self.X_OPENER_RETURN, vel=self.vel, acc=self.acc, ref=self.DR_BASE, sol=0)
+        self.movel(self.posx(0, 0, -100, 0, 0, 0), vel=15, acc=15, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+        self.wait(0.5)
+        self.release()
+        self.movel(self.posx(0, 0, 100, 0, 0, 0), vel=30, acc=30, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+
     # --------------------------------------------------
     # 돌려서 뚜껑 열기 시퀀스 
     # --------------------------------------------------
@@ -857,12 +905,17 @@ class Opener(Node):
 
         # (3) 그리퍼 닫기
         self.grip()
+        if not self.check_grasp_success():
+            self.get_logger().error("[예외] 뚜껑 파지 실패! 헛돌기 방지를 위해 회전을 취소합니다.")
+            self.release()
+            self.movel(self.posx(0, 0, 50, 0, 0, 0), vel=20, acc=20, ref=self.DR_BASE, mod=self.DR_MV_MOD_REL)
+            return False
 
         # (4) 뚜껑 열기
         self.spin_open()
-
-        # (5) 뚜껑 버리기
+        self.spin_open()
         self.trash()
+        return True
 
     # --------------------------------------------------
     # 뚜껑 버리기
