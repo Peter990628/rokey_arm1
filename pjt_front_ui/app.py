@@ -71,6 +71,7 @@ ROS2 토픽
 """
 
 import json
+import os
 import threading
 from datetime import datetime, timezone, timedelta
 
@@ -87,13 +88,19 @@ from flask_socketio import SocketIO
 # Flask / SocketIO
 # ---------------------------------------------------------------
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "pharmacy-ui-alarm-secret"
+app.config["SECRET_KEY"] = os.getenv(
+    "PHARMACY_UI_SECRET_KEY",
+    "development-only-secret-key",
+)
 socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 
 # ---------------------------------------------------------------
-# DB API 주소 (★ 실제 주소 나오면 이 줄만 교체 ★)
+# DB API 주소
 # ---------------------------------------------------------------
-DB_API_BASE_URL = "http://172.23.0.128:8000"  # 실제 DB 서버 주소로 교체 완료
+DB_API_BASE_URL = os.getenv(
+    "PHARMACY_BACKEND_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 MEDICINE_ENDPOINT = f"{DB_API_BASE_URL}/api/medicine/"
 DEFAULT_LOW_STOCK_THRESHOLD = 5
 
@@ -394,7 +401,14 @@ if __name__ == "__main__":
     spin_thread.start()
 
     try:
-        socketio.run(app, host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+        debug_enabled = os.getenv("FLASK_DEBUG", "0") == "1"
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=5000,
+            debug=debug_enabled,
+            use_reloader=False,
+        )
     finally:
         ros_node.destroy_node()
         rclpy.shutdown()

@@ -1,3 +1,14 @@
-.vscode
-resource
-__pycache__
+.vscode/
+.venv/
+venv/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.env
+*.sqlite3
+
+build/
+install/
+log/

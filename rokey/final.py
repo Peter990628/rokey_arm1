@@ -1187,7 +1187,7 @@ class PourPills:
             self._return_opener_safely()
             return False
 
-        # opener.py의 잘못된 pour_tweezer() 호출을 opener_tweezer()로 수정.
+        # 오프너 작업에는 전용 opener_tweezer() 시퀀스를 사용한다.
         if not self.opener_tweezer():
             self._return_opener_safely()
             return False
@@ -2135,7 +2135,7 @@ SCRAPER_RETURN_MIDDLE_MIDDLE = [14.83, 4.70, 57.95, 179.95, -117.35, -73.88]
 SCRAPER_RETURN_STAND = [16.36, 12.25, 99.06, 169.71, -36.23, -159.68]
 
 
-class ManipulatorTest2:
+class ScraperPaperBagWorker:
     def __init__(self, node):
         self.node = node
         self.task_done_pub = node.create_publisher(Bool, "task_done", 10)
@@ -2594,7 +2594,7 @@ class ManipulatorTest2:
         done_msg = Bool()
         done_msg.data = True
         self.task_done_pub.publish(done_msg)
-        self.node.get_logger().info("manipulator_test_2 task_done published: True")
+        self.node.get_logger().info("task_done published: True")
         rclpy.spin_once(self.node, timeout_sec=0.1)
 
 # ==================================================
@@ -2647,7 +2647,7 @@ class PharmacyRobotCoordinator:
 
         # 기존 스크래퍼 로직을 모션 Worker로 사용한다.
         # 생성자에서 만드는 기존 구독은 제거하고 Coordinator 구독만 사용한다.
-        self.scraper_worker = ManipulatorTest2(node)
+        self.scraper_worker = ScraperPaperBagWorker(node)
         if self.scraper_worker.scraper_task_sub is not None:
             node.destroy_subscription(self.scraper_worker.scraper_task_sub)
             self.scraper_worker.scraper_task_sub = None

@@ -1,0 +1,7 @@
+requests
+Flask
+Flask-SocketIO
+Django
+djangorestframework
+django-cors-headers
+psycopg2-binary

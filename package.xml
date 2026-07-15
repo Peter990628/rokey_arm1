@@ -2,17 +2,17 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>rokey</name>
-  <version>0.0.0</version>
-  <description>move_node</description>
+  <version>1.0.0</version>
+  <description>Pharmacy assistant robot control and backend bridge nodes</description>
   <maintainer email="haebyuk35@gmail.com">PETER</maintainer>
   <license>Apache-2.0</license>
+  <url type="repository">https://github.com/Peter990628/rokey_arm1</url>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
-  <depend>action_msgs</depend>
-  <depend>dsr_msgs</depend>
   <depend>dsr_common2</depend>
   <depend>dsr_msgs2</depend>
+  <exec_depend>python3-requests</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
