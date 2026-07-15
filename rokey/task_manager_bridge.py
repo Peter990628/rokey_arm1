@@ -67,19 +67,24 @@
 # ]
 
 #----------------/dsr01/pharmacy/refill_required_medicine---------------------
-# READY가 아닌 약이 여러 개이면 한 JSON 배열 안에 약별 객체로 구분해서 보낸다.
+# PourPills.set_task_from_data()가 바로 읽을 수 있도록 좌표를 평평하게 보낸다.
+# READY가 아닌 약이 여러 개이면 한 JSON 배열 안에 약별 객체로 구분한다.
 # [
 #   {
+#     "medicine_number": 1,
 #     "medicine_name": "타이레놀",
-#     "storage_pose": {"x": 100.0, "y": 200.0, "z": 300.0,
-#                      "rx": 0.0, "ry": 180.0, "rz": 0.0},
-#     "dispensing_pose": {"x": 400.0, "y": 200.0, "z": 150.0,
-#                         "rx": 0.0, "ry": 180.0, "rz": 0.0},
-#     "drawer_pose": {"x": 350.0, "y": 210.0, "z": 170.0,
-#                     "rx": 0.0, "ry": 180.0, "rz": 0.0},
+#     "storage_x": 100.0, "storage_y": 200.0, "storage_z": 300.0,
+#     "storage_rx": 0.0, "storage_ry": 180.0, "storage_rz": 0.0,
+#     "dispensing_x": 400.0, "dispensing_y": 200.0, "dispensing_z": 150.0,
+#     "dispensing_rx": 0.0, "dispensing_ry": 180.0, "dispensing_rz": 0.0,
+#     "drawer_x": 350.0, "drawer_y": 210.0, "drawer_z": 170.0,
+#     "drawer_rx": 0.0, "drawer_ry": 180.0, "drawer_rz": 0.0,
 #     "bottle_tip_offset_x": 0.0,
 #     "bottle_tip_offset_y": 25.0,
-#     "bottle_tip_offset_z": -42.0
+#     "bottle_tip_offset_z": -42.0,
+#     "lid_type": "spin",
+#     "storage_stock": 20,
+#     "dispensing_stock": 5
 #   }
 # ]
 
@@ -104,8 +109,23 @@ DEFAULT_REFILL_REQUIRED_MEDICINE_TOPIC = (
     "/dsr01/pharmacy/refill_required_medicine"
 )
 
-# Medicine 좌표 필드의 공통 축 이름.
-POSE_AXES = ("x", "y", "z", "rx", "ry", "rz")
+# 로봇 제어 노드 PourPills.set_task_from_data()가 요구하는 필드.
+REFILL_TASK_FIELDS = (
+    "medicine_number",
+    "medicine_name",
+    "storage_x", "storage_y", "storage_z",
+    "storage_rx", "storage_ry", "storage_rz",
+    "dispensing_x", "dispensing_y", "dispensing_z",
+    "dispensing_rx", "dispensing_ry", "dispensing_rz",
+    "bottle_tip_offset_x",
+    "bottle_tip_offset_y",
+    "bottle_tip_offset_z",
+    "drawer_x", "drawer_y", "drawer_z",
+    "drawer_rx", "drawer_ry", "drawer_rz",
+    "lid_type",
+    "storage_stock",
+    "dispensing_stock",
+)
 
 
 class TaskManagerBridge(Node):
@@ -116,7 +136,7 @@ class TaskManagerBridge(Node):
         # ROS2 파라미터 선언.
         # 예:
         # ros2 run rokey task_manager_bridge --ros-args \
-        #   -p backend_base_url:=http://172.23.0.128:8000/api
+        #   -p backend_base_url:=http://172.23.0.129:8000/api
         self.declare_parameter("backend_base_url", DEFAULT_BACKEND_BASE_URL)
         self.declare_parameter("poll_interval_sec", 1.0)
         self.declare_parameter("request_timeout_sec", 2.0)
@@ -274,27 +294,29 @@ class TaskManagerBridge(Node):
                         self._logged_errors.add(error_key)
                     continue
 
-                # 약마다 독립된 객체를 만들고 위치 종류도 pose 객체로 구분한다.
-                refill_required_medicines.append(
-                    {
-                        "medicine_name": medicine_name,
-                        "storage_pose": self._make_pose(medicine, "storage"),
-                        "dispensing_pose": self._make_pose(
-                            medicine,
-                            "dispensing",
-                        ),
-                        "drawer_pose": self._make_pose(medicine, "drawer"),
-                        "bottle_tip_offset_x": medicine.get(
-                            "bottle_tip_offset_x"
-                        ),
-                        "bottle_tip_offset_y": medicine.get(
-                            "bottle_tip_offset_y"
-                        ),
-                        "bottle_tip_offset_z": medicine.get(
-                            "bottle_tip_offset_z"
-                        ),
-                    }
-                )
+                ## db 통합하면서 서영채가 수정함
+                # # 약마다 독립된 객체를 만들고 위치 종류도 pose 객체로 구분한다.
+                # refill_required_medicines.append(
+                #     {
+                #         "medicine_name": medicine_name,
+                #         "storage_pose": self._make_pose(medicine, "storage"),
+                #         "dispensing_pose": self._make_pose(
+                #             medicine,
+                #             "dispensing",
+                #         ),
+                #         "drawer_pose": self._make_pose(medicine, "drawer"),
+                #         "bottle_tip_offset_x": medicine.get(
+                #             "bottle_tip_offset_x"
+                #         ),
+                #         "bottle_tip_offset_y": medicine.get(
+                #             "bottle_tip_offset_y"
+                #         ),
+                #         "bottle_tip_offset_z": medicine.get(
+                #             "bottle_tip_offset_z"
+                #         ),
+                #     }
+                # )
+                refill_required_medicines.append(refill_task)
                 added_names.add(medicine_name)
 
         # READY가 아닌 약이 있을 때만 리필 필요 토픽을 발행한다.
@@ -312,6 +334,54 @@ class TaskManagerBridge(Node):
                 f"{len(refill_required_medicines)}개"
             )
             self._logged_success.add(label)
+    
+    # db 통합하면서 서영채가 수정함
+    def _build_refill_task(self, medicine: dict):
+        """Medicine 응답 하나를 로봇 제어 노드용 작업 객체로 변환한다."""
+        task = {field: medicine.get(field) for field in REFILL_TASK_FIELDS}
+
+        # 백엔드 serializer가 medicine_number 대신 id만 보내는 경우를 지원한다.
+        if task["medicine_number"] is None:
+            task["medicine_number"] = medicine.get("id")
+
+        if isinstance(task.get("lid_type"), str):
+            task["lid_type"] = task["lid_type"].strip().lower()
+
+        missing_fields = [
+            field for field in REFILL_TASK_FIELDS
+            if task.get(field) is None
+        ]
+        if missing_fields:
+            medicine_name = medicine.get("medicine_name", "<unknown>")
+            error_key = (
+                "missing_refill_task_fields",
+                medicine_name,
+                tuple(missing_fields),
+            )
+            if error_key not in self._logged_errors:
+                self.get_logger().warn(
+                    f"리필 작업 생성 실패: medicine={medicine_name}, "
+                    f"누락 필드={missing_fields}"
+                )
+                self._logged_errors.add(error_key)
+            return None
+
+        if task["lid_type"] not in ("pull", "spin"):
+            error_key = (
+                "unsupported_lid_type",
+                task["medicine_name"],
+                task["lid_type"],
+            )
+            if error_key not in self._logged_errors:
+                self.get_logger().warn(
+                    f"지원하지 않는 lid_type: "
+                    f"medicine={task['medicine_name']}, "
+                    f"lid_type={task['lid_type']}"
+                )
+                self._logged_errors.add(error_key)
+            return None
+
+        return task
 
     def _extract_records(self, data):
         if isinstance(data, list):
@@ -320,12 +390,13 @@ class TaskManagerBridge(Node):
             return data["results"]
         return []
 
-    def _make_pose(self, medicine: dict, prefix: str):
-        # 예: prefix가 storage이면 storage_x부터 storage_rz까지 묶는다.
-        return {
-            axis: medicine.get(f"{prefix}_{axis}")
-            for axis in POSE_AXES
-        }
+    ## db 통합하면서 서영채가 수정함
+    # def _make_pose(self, medicine: dict, prefix: str):
+    #     # 예: prefix가 storage이면 storage_x부터 storage_rz까지 묶는다.
+    #     return {
+    #         axis: medicine.get(f"{prefix}_{axis}")
+    #         for axis in POSE_AXES
+    #     }
 
     def _get_json(self, path: str):
         # 예: http://172.23.0.128:8000/api + /events/

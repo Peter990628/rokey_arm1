@@ -4,6 +4,7 @@
 
 import json
 import math
+import os
 import time
 from time import sleep
 
@@ -17,7 +18,7 @@ ROBOT_ID = "dsr01"
 ROBOT_MODEL = "m0609"
 
 TCP_NAME = "Tool_v1"
-TOOL_NAME = "Tool Weight_1"
+TOOL_NAME = "Tool Weight"
 
 VELOCITY = 50
 ACC = 50
@@ -26,7 +27,10 @@ ON = 1
 OFF = 0
 
 MEDICINE_TOPIC = "/dsr01/pharmacy/refill_required_medicine"
-DONE_URL = "http://172.23.0.129:8000/api/tasks/refill/"
+DONE_URL = os.getenv(
+    "PHARMACY_DONE_URL",
+    "http://127.0.0.1:8000/api/tasks/refill/",
+)
 
 # --------------------------------------------------
 # 약 붓기용 가상 TCP 설정
@@ -44,6 +48,16 @@ POUR_STEP_DEG = 10.0
 POUR_VEL =15
 POUR_ACC = 15
 POUR_HOLD_SEC = 1.0
+
+# --------------------------------------------------
+# 뚜껑 병따개 걸기용 가상 TCP 설정
+# --------------------------------------------------
+OPENER_HOOK_TOTAL_ANGLE_DEG = -30.0
+OPENER_HOOK_STEP_DEG = 6.0
+OPENER_HOOK_VEL = 5
+OPENER_HOOK_ACC = 5
+OPENER_HOOK_HOLD_SEC = 1.0
+OPENER_TIP_OFFSET_TCP = [0.0, 0.0, 75.0]
 
 # 약통을 보관 위치에서 빼낼 때 사용하는 순응제어/힘제어 설정
 MEDICINE_LIFT_DISTANCE = 40.0
@@ -70,6 +84,17 @@ BOTTLE_GRIP_TIMEOUT_SEC = 2.0
 
 # 입력 확인 주기
 BOTTLE_GRIP_CHECK_INTERVAL_SEC = 0.05
+
+# 임시 설정: 실제 파지 DI 확인을 사용하지 않고 그리퍼 닫기 후 바로 진행
+USE_BOTTLE_GRIP_SENSOR = False
+
+# 같은 EventItem 작업의 반복 publish를 막는 시간
+RECENT_TASK_IGNORE_SEC = 30.0
+
+# 완료 직후 DDS 큐에 남아 있을 수 있는 동일 약의 오래된 메시지를 잠시 무시한다.
+# 새 Event가 정말 REFILL_REQUIRED 상태라면 Task Manager가 계속 publish하므로,
+# 이 시간이 지난 뒤 정상적으로 다시 작업에 등록된다.
+RECENT_MEDICINE_IGNORE_SEC = 3.0
 
 
 # 반드시 DSR_ROBOT2 import 전에 설정
@@ -118,6 +143,7 @@ class PourPills:
         self.get_current_posx = dsr_functions["get_current_posx"]
         self.release_force = dsr_functions["release_force"]
         self.release_compliance_ctrl = dsr_functions["release_compliance_ctrl"]
+        self.get_tool_force = dsr_functions["get_tool_force"]
 
         # --------------------------------------------------
         # DSR 상수
@@ -125,6 +151,7 @@ class PourPills:
         self.DR_BASE = dsr_constants["DR_BASE"]
         self.DR_MV_MOD_REL = dsr_constants["DR_MV_MOD_REL"]
         self.DR_FC_MOD_REL = dsr_constants["DR_FC_MOD_REL"]
+        self.DR_TOOL = dsr_constants["DR_TOOL"]
 
         self.posx = posx
         self.posj = posj
@@ -138,6 +165,12 @@ class PourPills:
         self.current_task = None
         self.task_queue = []
 
+        # task manager가 1초마다 같은 배열을 publish하므로 중복 작업을 막는다.
+        self.queued_task_keys = set()
+        self.active_task_key = None
+        self.recently_completed_task_times = {}
+        self.recently_completed_medicine_times = {}
+
         self.medicine_id = None
         self.medicine_name = None
         self.refill_amount = None
@@ -145,6 +178,16 @@ class PourPills:
 
         self.storage_stock = None
         self.dispensing_stock = None
+
+        # --------------------------------------------------
+        # 적재소 약통 위치
+        # --------------------------------------------------
+        self.storage_x = None
+        self.storage_y = None
+        self.storage_z = None
+        self.storage_rx = None
+        self.storage_ry = None
+        self.storage_rz = None
 
         # --------------------------------------------------
         # 조제기 위치
@@ -174,9 +217,14 @@ class PourPills:
         # --------------------------------------------------
         # 로봇 위치
         # --------------------------------------------------
+        self.X_STORAGE_LOC = None
         self.X_DISPENSER_POS = None
         self.X_DRAWER = None
         self.X_LOCK_RETURN = None
+        self.X_OPENER_RETURN = None
+
+        # 병따개 끝점 오프셋은 약 붓기용 DB 오프셋과 별도로 사용한다.
+        self.opener_tip_offset_tcp = list(OPENER_TIP_OFFSET_TCP)
 
         self.X_TRASH_DROP = None
         self.X_TWEEZER_HOME = None
@@ -199,6 +247,45 @@ class PourPills:
     # 0. 고정 위치 정의
     # --------------------------------------------------
     def define_positions(self):
+        # 적재소 근처 접근 위치
+        self.X_STORAGE_APPROACH = self.posx(
+            357.12, 219.79, 400.52,
+            96.00, 176.96, 105.65,
+        )
+
+        # 약통 고정 거치대
+        self.X_FIX_ABOVE = self.posx(
+            550.90, 1.02, 200.52,
+            8.33, -179.62, 18.10,
+        )
+        self.X_FIX = self.posx(
+            551.90, 2.20, 50.91,
+            8.33, -179.62, 18.10,
+        )
+        self.X_SPIN_LID_ABOVE = self.posx(
+            551.90, 2.20, 100.91,
+            8.33, -179.62, 18.10,
+        )
+
+        # 당겨서 여는 뚜껑용 병따개 위치
+        self.X_OPENER_TOOL_ABOVE = self.posx(
+            582.33, 244.77, 129.81,
+            39.98, 180.00, 132.74,
+        )
+        self.X_OPENER_TOOL = self.posx(
+            582.33, 244.77, 99.81,
+            39.98, 180.00, 132.74,
+        )
+        self.X_OPEN_READY_ABOVE = self.posx(
+            602.07, 6.05, 182.47,
+            161.74, -179.88, 157.58,
+        )
+        self.X_OPEN_READY = self.posx(
+            602.07, 6.05, 148.47,
+            161.74, -179.88, 157.58,
+        )
+
+        # 뚜껑과 빈 약통이 사용하는 쓰레기통 위치
         self.X_TRASH_DROP = self.posx(
             -423.12,
             -96.72,
@@ -216,12 +303,87 @@ class PourPills:
             String,
             MEDICINE_TOPIC,
             self.dispenser_pose_callback,
-            10,
+            1,
         )
 
         self.get_logger().info(
             f"약품 작업 토픽 구독 시작: {MEDICINE_TOPIC}"
         )
+
+    @staticmethod
+    def _make_task_key(task):
+        """
+        같은 polling 메시지는 중복으로 넣지 않되,
+        같은 약이 새로운 EventItem으로 다시 들어오면 새 작업으로 구분한다.
+
+        우선순위:
+        1. source_event_item_ids
+        2. source_event_ids + medicine_name
+        3. medicine_name (이전 Task Manager 호환용)
+        """
+        if not isinstance(task, dict):
+            return None
+
+        medicine_name = task.get("medicine_name")
+        if isinstance(medicine_name, str):
+            medicine_name = medicine_name.strip()
+        else:
+            medicine_name = ""
+
+        item_ids = task.get("source_event_item_ids")
+        if isinstance(item_ids, list):
+            normalized_item_ids = sorted(
+                {
+                    str(item_id)
+                    for item_id in item_ids
+                    if item_id is not None
+                }
+            )
+            if normalized_item_ids:
+                return (
+                    f"medicine_name:{medicine_name}|"
+                    f"event_items:{','.join(normalized_item_ids)}"
+                )
+
+        event_ids = task.get("source_event_ids")
+        if isinstance(event_ids, list):
+            normalized_event_ids = sorted(
+                {
+                    str(event_id)
+                    for event_id in event_ids
+                    if event_id is not None
+                }
+            )
+            if normalized_event_ids:
+                return (
+                    f"medicine_name:{medicine_name}|"
+                    f"events:{','.join(normalized_event_ids)}"
+                )
+
+        if medicine_name:
+            return f"medicine_name:{medicine_name}"
+
+        return None
+
+    def _purge_old_completed_task_keys(self):
+        now = time.monotonic()
+
+        expired_task_keys = [
+            key
+            for key, completed_at in self.recently_completed_task_times.items()
+            if now - completed_at >= RECENT_TASK_IGNORE_SEC
+        ]
+        for key in expired_task_keys:
+            del self.recently_completed_task_times[key]
+
+        expired_medicine_names = [
+            medicine_name
+            for medicine_name, completed_at
+            in self.recently_completed_medicine_times.items()
+            if now - completed_at >= RECENT_MEDICINE_IGNORE_SEC
+        ]
+        for medicine_name in expired_medicine_names:
+            del self.recently_completed_medicine_times[medicine_name]
 
     def dispenser_pose_callback(self, msg):
         try:
@@ -237,11 +399,42 @@ class PourPills:
                     "수신 데이터가 비어 있음"
                 )
 
-            self.task_queue.extend(data)
+            self._purge_old_completed_task_keys()
+
+            added_count = 0
+            skipped_count = 0
+
+            for task in data:
+                task_key = self._make_task_key(task)
+                if task_key is None:
+                    self.get_logger().warning(
+                        f"작업 식별 키가 없어 건너뜀: {task}"
+                    )
+                    skipped_count += 1
+                    continue
+
+                medicine_name = task.get("medicine_name")
+                if isinstance(medicine_name, str):
+                    medicine_name = medicine_name.strip()
+                else:
+                    medicine_name = ""
+
+                if (
+                    task_key in self.queued_task_keys
+                    or task_key == self.active_task_key
+                    or task_key in self.recently_completed_task_times
+                    or medicine_name in self.recently_completed_medicine_times
+                ):
+                    skipped_count += 1
+                    continue
+
+                self.task_queue.append(task)
+                self.queued_task_keys.add(task_key)
+                added_count += 1
 
             self.get_logger().info(
-                f"작업 {len(data)}개 추가 수신, "
-                f"현재 대기 작업 {len(self.task_queue)}개"
+                f"작업 수신: 추가={added_count}, 중복 생략={skipped_count}, "
+                f"현재 대기={len(self.task_queue)}"
             )
 
         except json.JSONDecodeError as e:
@@ -261,6 +454,13 @@ class PourPills:
         required_keys = [
             "medicine_number",
             "medicine_name",
+
+            "storage_x",
+            "storage_y",
+            "storage_z",
+            "storage_rx",
+            "storage_ry",
+            "storage_rz",
 
             "dispensing_x",
             "dispensing_y",
@@ -294,6 +494,22 @@ class PourPills:
         self.medicine_id = int(task["medicine_number"])
 
         self.medicine_name = str(task["medicine_name"])
+
+        # 적재소 약통 좌표는 직교 좌표(posx)로 사용한다.
+        self.storage_x = float(task["storage_x"])
+        self.storage_y = float(task["storage_y"])
+        self.storage_z = float(task["storage_z"])
+        self.storage_rx = float(task["storage_rx"])
+        self.storage_ry = float(task["storage_ry"])
+        self.storage_rz = float(task["storage_rz"])
+        self.X_STORAGE_LOC = self.posx(
+            self.storage_x,
+            self.storage_y,
+            self.storage_z,
+            self.storage_rx,
+            self.storage_ry,
+            self.storage_rz,
+        )
 
         # 조제기 좌표
         self.dispensing_x = float(task["dispensing_x"])
@@ -347,6 +563,7 @@ class PourPills:
             f"medicine_number={self.medicine_id}, "
             f"medicine_name={self.medicine_name}, "
             f"lid_type={self.lid_type}, "
+            f"storage_posx={list(self.X_STORAGE_LOC)}, "
             f"dispensing_posj={list(self.X_DISPENSER_POS)}, "
             f"drawer_posj={list(self.X_DRAWER)}, "
             f"bottle_tip_offset_tcp={self.bottle_tip_offset_tcp}"
@@ -409,6 +626,17 @@ class PourPills:
         self.set_digital_output(2, ON)
 
         sleep(1)
+
+    def little_grip(self):
+        self.get_logger().info("그리퍼 살짝 닫기")
+
+        self.set_digital_output(1, OFF)
+        self.set_digital_output(2, OFF)
+        sleep(0.2)
+
+        self.set_digital_output(1, ON)
+        self.set_digital_output(2, ON)
+        sleep(1)
     
     def wait_for_bottle_grip(
         self,
@@ -417,12 +645,15 @@ class PourPills:
         """
         약통 파지 완료 디지털 입력을 timeout 동안 확인한다.
 
-        성공:
-            True 반환
-
-        실패:
-            GraspError 발생
+        USE_BOTTLE_GRIP_SENSOR가 False이면 DI 확인을 생략하고
+        그리퍼 닫기 동작이 끝난 뒤 바로 성공으로 처리한다.
         """
+        if not USE_BOTTLE_GRIP_SENSOR:
+            self.get_logger().warning(
+                "약통 파지 DI 확인 비활성화: 그리퍼 닫힘을 성공으로 간주함"
+            )
+            return
+
         start_time = time.monotonic()
 
         while rclpy.ok():
@@ -520,20 +751,20 @@ class PourPills:
             self.X_DRAWER,
             vel=self.vel,
             acc=self.acc,
-            ref=self.DR_BASE
         )
 
         self.grip()
 
         self.movel(
-            self.posx(-125, 0, 0, 0, 0, 0),
+            self.posx(-110, 0, 0, 0, 0, 0),
             vel=20,
             acc=20,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
-
         self.release()
+
+    
 
         x, y, z, rx, ry, rz = self.get_current_pos_base()
         self.X_DRAWER_CLOSED = self.posx(x, y, z, rx, ry, rz)
@@ -544,6 +775,14 @@ class PourPills:
             f"rx={rx:.2f}, ry={ry:.2f}, rz={rz:.2f}"
         )
 
+        self.movel(
+            self.posx(-30, 0, 0, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+
         # 열린 서랍에서 약 보관 위치로 이동하기 전에 안전 Joint로 복귀한다.
         self.movej(
             self.posj(*DRAWER_SAFE_JOINT),
@@ -551,6 +790,596 @@ class PourPills:
             acc=20,
         ) 
     
+    # --------------------------------------------------
+    # 6. opener 시퀀스: 적재소 약통 파지
+    # --------------------------------------------------
+    def storage_grasp(self):
+        if self.X_STORAGE_LOC is None:
+            raise RuntimeError("적재소 약통 위치가 설정되지 않음")
+
+        self.get_logger().info("=== 적재소 약통 파지 시퀀스 ===")
+
+        self.movejx(
+            self.X_STORAGE_APPROACH,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.movejx(
+            self.X_STORAGE_LOC,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+
+        self.movel(
+            self.posx(0, 0, -27, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.grip()
+
+        self.movel(
+            self.posx(0, 0, 40, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.wait(0.5)
+        self.movejx(
+            self.X_STORAGE_APPROACH,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+
+    # --------------------------------------------------
+    # opener 시퀀스: 약통을 거치대에 가압 삽입
+    # --------------------------------------------------
+    def pull_down(self):
+        self.get_logger().info("거치대에 약통 가압 삽입 시작")
+
+        compliance_started = False
+        force_started = False
+        target_z = 29.93
+        z_tolerance = 2.0
+        start_time = time.monotonic()
+
+        try:
+            self.task_compliance_ctrl(
+                stx=[500, 500, 100, 5000, 5000, 5000]
+            )
+            compliance_started = True
+            self.wait(0.5)
+
+            self.set_desired_force(
+                fd=[0, 0, -45, 0, 0, 0],
+                dir=[0, 0, 1, 0, 0, 0],
+                mod=self.DR_FC_MOD_REL,
+            )
+            force_started = True
+            self.wait(0.5)
+
+            while rclpy.ok():
+                current_z = self.get_current_pos_base()[2]
+
+                if abs(current_z - target_z) <= z_tolerance:
+                    self.get_logger().info(
+                        f"거치대 안착 완료: current_z={current_z:.2f}"
+                    )
+                    return True
+
+                if time.monotonic() - start_time > 30.0:
+                    self.get_logger().error(
+                        "거치대 안착 시간 초과. 거치대 상태를 확인해야 함"
+                    )
+                    return False
+
+                sleep(0.02)
+
+            return False
+
+        finally:
+            if force_started:
+                self.release_force()
+            if compliance_started:
+                self.release_compliance_ctrl()
+
+    # --------------------------------------------------
+    # opener 시퀀스: 약통 거치대 락킹
+    # --------------------------------------------------
+    def lock_bottle_in_fixture(self):
+        self.get_logger().info("반시계 방향 회전으로 약통 거치대 락킹")
+
+        # 원본 opener의 movej는 동기식이므로 회전 완료 후 반환된다.
+        self.movej(
+            self.posj(0, 0, 0, 0, 0, -17),
+            vel=3,
+            acc=1,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.wait(0.5)
+        return True
+
+    def fix_lid(self):
+        self.get_logger().info("=== 약통 거치대 고정 시퀀스 ===")
+
+        self.movejx(
+            self.X_FIX_ABOVE,
+            vel=30,
+            acc=30,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.wait(1.0)
+
+        self.movejx(
+            self.X_FIX,
+            vel=5,
+            acc=5,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.wait(0.5)
+
+        if not self.pull_down():
+            self.movel(
+                self.posx(0, 0, 50, 0, 0, 0),
+                vel=20,
+                acc=20,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            raise RuntimeError("약통 거치대 안착 실패")
+
+        if not self.lock_bottle_in_fixture():
+            raise RuntimeError("약통 거치대 락킹 실패")
+
+        current = self.get_current_pos_base()
+        self.X_LOCK_RETURN = self.posx(*current)
+        self.get_logger().info(
+            "약통 재파지 좌표 저장 완료: "
+            f"{[round(value, 2) for value in current]}"
+        )
+
+        self.release()
+        self.movel(
+            self.posx(0, 0, 100, 0, 0, 0),
+            vel=20,
+            acc=20,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+
+    # --------------------------------------------------
+    # pull 뚜껑: 접촉 위치 탐색
+    # --------------------------------------------------
+    def pull_lid_open(self):
+        self.movejx(
+            self.X_OPEN_READY_ABOVE,
+            vel=10,
+            acc=10,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.wait(0.5)
+
+        self.movel(
+            self.X_OPEN_READY,
+            vel=5,
+            acc=5,
+            ref=self.DR_BASE,
+        )
+        self.wait(0.5)
+
+        self.get_logger().info("병따개 X축 접촉 탐색 시작")
+        last_force_x = 0.0
+
+        for _ in range(100):
+            current_force = self.get_tool_force(ref=self.DR_BASE)
+            last_force_x = float(current_force[0])
+
+            if last_force_x > 0.0:
+                self.get_logger().info(
+                    f"뚜껑 접촉 감지: Fx={last_force_x:.2f} N"
+                )
+                return True
+
+            self.movel(
+                self.posx(-2.0, 0, 0, 0, 0, 0),
+                vel=5,
+                acc=5,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            sleep(0.05)
+
+        self.get_logger().error(
+            "뚜껑 접촉 탐색 실패: "
+            f"last_Fx={last_force_x:.2f} N"
+        )
+        return False
+
+    def _calculate_virtual_tcp_pose_about_y(
+        self,
+        start_rotation,
+        tip_position_base,
+        angle_deg,
+        reference_abc,
+    ):
+        local_y_rotation = self._rotation_y(math.radians(angle_deg))
+        target_rotation = self._matmul_3x3(
+            start_rotation,
+            local_y_rotation,
+        )
+        rotated_tip_offset_base = self._matvec_3x3(
+            target_rotation,
+            self.opener_tip_offset_tcp,
+        )
+        target_position = [
+            tip_position_base[index] - rotated_tip_offset_base[index]
+            for index in range(3)
+        ]
+        target_abc = self._rotation_matrix_to_zyz(
+            target_rotation,
+            reference_abc,
+        )
+        target_values = target_position + target_abc
+        return self.posx(*target_values), target_values, target_abc
+
+    # --------------------------------------------------
+    # pull 뚜껑: 병따개 끝점을 중심으로 걸기
+    # --------------------------------------------------
+    def opener_tweezer(self):
+        start_pose = self.get_current_pos_base()
+        start_position = start_pose[:3]
+        start_abc = start_pose[3:6]
+        start_rotation = self._zyz_to_rotation_matrix(*start_abc)
+
+        tip_offset_base = self._matvec_3x3(
+            start_rotation,
+            self.opener_tip_offset_tcp,
+        )
+        tip_position_base = [
+            start_position[index] + tip_offset_base[index]
+            for index in range(3)
+        ]
+
+        reference_abc = start_abc
+        angles = self._make_angle_sequence(
+            OPENER_HOOK_TOTAL_ANGLE_DEG,
+            OPENER_HOOK_STEP_DEG,
+        )
+
+        for angle_deg in angles:
+            target_pose, target_values, reference_abc = (
+                self._calculate_virtual_tcp_pose_about_y(
+                    start_rotation=start_rotation,
+                    tip_position_base=tip_position_base,
+                    angle_deg=angle_deg,
+                    reference_abc=reference_abc,
+                )
+            )
+            self.get_logger().info(
+                f"병따개 걸기 {angle_deg:.1f}도 목표: "
+                f"{[round(value, 3) for value in target_values]}"
+            )
+            self.movel(
+                target_pose,
+                vel=OPENER_HOOK_VEL,
+                acc=OPENER_HOOK_ACC,
+                ref=self.DR_BASE,
+            )
+
+        sleep(OPENER_HOOK_HOLD_SEC)
+        self.get_logger().info("병따개를 뚜껑에 거는 동작 완료")
+        return True
+
+    def _return_opener_safely(self):
+        if self.X_OPENER_RETURN is None:
+            raise RuntimeError("병따개 반환 위치가 저장되지 않음")
+
+        self.movejx(
+            self.X_OPENER_RETURN,
+            vel=30,
+            acc=30,
+            ref=self.DR_BASE,
+            sol=0,
+        )
+        self.movel(
+            self.posx(0, 0, -100, 0, 0, 0),
+            vel=15,
+            acc=15,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.release()
+        self.movel(
+            self.posx(0, 0, 100, 0, 0, 0),
+            vel=30,
+            acc=30,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+
+    def pull_lid(self):
+        self.get_logger().info("=== 당겨서 여는 약통 뚜껑 열기 ===")
+
+        self.movejx(
+            self.X_OPENER_TOOL_ABOVE,
+            vel=30,
+            acc=30,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.movel(
+            self.X_OPENER_TOOL,
+            vel=15,
+            acc=15,
+            ref=self.DR_BASE,
+        )
+        self.grip()
+
+        self.movel(
+            self.posx(0, 0, 130, 0, 0, 0),
+            vel=30,
+            acc=30,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.X_OPENER_RETURN = self.posx(*self.get_current_pos_base())
+
+        if not self.pull_lid_open():
+            self._return_opener_safely()
+            return False
+
+        # opener.py의 잘못된 pour_tweezer() 호출을 opener_tweezer()로 수정.
+        if not self.opener_tweezer():
+            self._return_opener_safely()
+            return False
+
+        self.movel(
+            self.posx(0, 0, -150, 0, 0, 0),
+            vel=60,
+            acc=60,
+            ref=self.DR_TOOL,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self._return_opener_safely()
+        return True
+
+    # --------------------------------------------------
+    # spin 뚜껑 열기
+    # --------------------------------------------------
+    def spin_open(self):
+        self.get_logger().info("라쳇 방식 spin 뚜껑 열기 시작")
+
+        max_attempts = 5
+        compliance_started = False
+        force_started = False
+
+        try:
+            self.task_compliance_ctrl(
+                stx=[10000, 10000, 300, 10000, 10000, 10000]
+            )
+            compliance_started = True
+            self.set_desired_force(
+                fd=[0, 0, -20, 0, 0, 0],
+                dir=[0, 0, 1, 0, 0, 0],
+                mod=self.DR_FC_MOD_REL,
+            )
+            force_started = True
+            self.wait(0.5)
+
+            for _ in range(3):
+                self.movel(
+                    self.posx(0, 0, 0, 0, 0, -10),
+                    vel=50,
+                    acc=50,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+                self.wait(0.1)
+
+            for attempt in range(1, max_attempts + 1):
+                self.get_logger().info(
+                    f"spin 뚜껑 회전 시도: {attempt}/{max_attempts}"
+                )
+
+                for _ in range(2):
+                    self.movel(
+                        self.posx(0, 0, 0, 0, 0, -90),
+                        vel=25,
+                        acc=25,
+                        ref=self.DR_TOOL,
+                        mod=self.DR_MV_MOD_REL,
+                    )
+
+                self.release()
+                self.wait(0.3)
+
+                for _ in range(2):
+                    self.movel(
+                        self.posx(0, 0, 0, 0, 0, 90),
+                        vel=30,
+                        acc=30,
+                        ref=self.DR_TOOL,
+                        mod=self.DR_MV_MOD_REL,
+                    )
+                    self.movel(
+                        self.posx(0, 0, -1, 0, 0, 0),
+                        vel=30,
+                        acc=30,
+                        ref=self.DR_TOOL,
+                        mod=self.DR_MV_MOD_REL,
+                    )
+
+                self.movel(
+                    self.posx(0, 0, 3, 0, 0, 0),
+                    vel=25,
+                    acc=25,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+                self.grip()
+                self.wait(0.5)
+
+                if force_started:
+                    self.release_force()
+                    force_started = False
+                if compliance_started:
+                    self.release_compliance_ctrl()
+                    compliance_started = False
+                self.wait(0.5)
+
+                self.movel(
+                    self.posx(0, 0, -1, 0, 0, 0),
+                    vel=15,
+                    acc=15,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+                current_force = self.get_tool_force(ref=self.DR_TOOL)
+
+                if abs(float(current_force[2])) <= 3.0:
+                    self.get_logger().info("spin 뚜껑 분리 성공")
+                    self.movel(
+                        self.posx(0, 0, -40, 0, 0, 0),
+                        vel=20,
+                        acc=20,
+                        ref=self.DR_TOOL,
+                        mod=self.DR_MV_MOD_REL,
+                    )
+                    return True
+
+                self.get_logger().info(
+                    "뚜껑 저항 감지. 다음 회전을 재시도함: "
+                    f"Fz={abs(float(current_force[2])):.2f} N"
+                )
+                self.release()
+                self.movel(
+                    self.posx(0, 0, 1, 0, 0, 0),
+                    vel=15,
+                    acc=15,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+                self.grip()
+
+                self.task_compliance_ctrl(
+                    stx=[10000, 10000, 300, 10000, 10000, 10000]
+                )
+                compliance_started = True
+                self.set_desired_force(
+                    fd=[0, 0, -20, 0, 0, 0],
+                    dir=[0, 0, 1, 0, 0, 0],
+                    mod=self.DR_FC_MOD_REL,
+                )
+                force_started = True
+                self.wait(0.5)
+                self.movel(
+                    self.posx(0, 0, 5, 0, 0, 0),
+                    vel=15,
+                    acc=15,
+                    ref=self.DR_TOOL,
+                    mod=self.DR_MV_MOD_REL,
+                )
+
+            self.get_logger().error(
+                f"spin 뚜껑 열기 최대 시도 초과: {max_attempts}회"
+            )
+            return False
+
+        finally:
+            if force_started:
+                self.release_force()
+            if compliance_started:
+                self.release_compliance_ctrl()
+
+    def check_grasp_success(self):
+        try:
+            self.wait_for_bottle_grip(
+                timeout_sec=BOTTLE_GRIP_TIMEOUT_SEC
+            )
+            return True
+        except GraspTimeoutError as error:
+            self.get_logger().error(f"그리퍼 파지 확인 실패: {error}")
+            return False
+
+    def discard_lid(self):
+        self.movejx(
+            self.X_TRASH_DROP,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.release()
+        self.get_logger().info("약통 뚜껑 버리기 완료")
+
+    def spin_lid(self):
+        self.get_logger().info("=== 돌려서 여는 약통 뚜껑 열기 ===")
+
+        self.movejx(
+            self.X_SPIN_LID_ABOVE,
+            vel=self.vel,
+            acc=self.acc,
+            ref=self.DR_BASE,
+            sol=2,
+        )
+        self.movel(
+            self.posx(0, 0, -35, 0, 0, 0),
+            vel=15,
+            acc=15,
+            ref=self.DR_BASE,
+            mod=self.DR_MV_MOD_REL,
+        )
+        self.grip()
+
+        if not self.check_grasp_success():
+            self.release()
+            self.movel(
+                self.posx(0, 0, 50, 0, 0, 0),
+                vel=20,
+                acc=20,
+                ref=self.DR_BASE,
+                mod=self.DR_MV_MOD_REL,
+            )
+            return False
+
+        if not self.spin_open():
+            return False
+
+        self.discard_lid()
+        return True
+
+    def run_opener_lid_task(self):
+        self.get_logger().info("opener 약통 파지 및 뚜껑 개방 시작")
+
+        self.storage_grasp()
+        self.fix_lid()
+
+        if self.lid_type == "pull":
+            success = self.pull_lid()
+        elif self.lid_type == "spin":
+            success = self.spin_lid()
+        else:
+            raise ValueError(f"지원하지 않는 lid_type: {self.lid_type}")
+
+        if not success:
+            raise RuntimeError(
+                f"뚜껑 개방 실패: medicine={self.medicine_name}, "
+                f"lid_type={self.lid_type}"
+            )
+
+        self.get_logger().info("opener 뚜껑 개방 완료")
+
     # --------------------------------------------------
     # 파지 실패 시 다시 파지 시도
     # --------------------------------------------------
@@ -654,12 +1483,10 @@ class PourPills:
             f"current_pos={[round(value, 2) for value in current_pos]}"
         )
 
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
 
-        # 3번일때
-        # self.movej(self.posj(-28.01, 18.18, 29.61, -2.29, 132.72, -149.21), vel=10, acc=10)
-
-        # # ---------------------------------------------약 부으러 가기 전 기울이기------------------
-        # self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
+        # ---------------------------------------------약 부으러 가기 전 기울이기------------------
+        self.movej(self.posj(-28.01, 18.18, 29.61, -2.29,  70.82, -181.30), vel=10, acc=10)
 
     def lift_medicine_with_force(self):
         start_pose = self.get_current_pos_base()
@@ -1048,13 +1875,19 @@ class PourPills:
             sol=2,
         )
 
+        self.grip()
+
         self.movel(
-            self.posx(125, 0, 0, 0, 0, 0),
+            self.posx(110, 0, 0, 0, 0, 0),
             vel=10,
             acc=10,
             ref=self.DR_BASE,
             mod=self.DR_MV_MOD_REL,
         )
+
+        self.release()
+
+        self.movej(self.posj(0,0,90,0,90,0), vel =20, acc=20)
 
         self.get_logger().info("서랍 닫기 완료")
 
@@ -1114,6 +1947,7 @@ class PourPills:
         )
 
         self.open_drawer()
+        self.run_opener_lid_task()
         self.pick_medicine()
         self.move_to_dispensing_position()
         self.pour_tweezer()
@@ -1134,6 +1968,10 @@ class PourPills:
         while rclpy.ok():
             while self.task_queue:
                 task = self.task_queue.pop(0)
+                task_key = self._make_task_key(task)
+                if task_key is not None:
+                    self.queued_task_keys.discard(task_key)
+                    self.active_task_key = task_key
 
                 try:
                     self.set_task_from_data(task)
@@ -1161,6 +1999,18 @@ class PourPills:
                         f"작업 완료: "
                         f"{self.medicine_name}"
                     )
+
+                    completed_at = time.monotonic()
+
+                    if task_key is not None:
+                        self.recently_completed_task_times[task_key] = (
+                            completed_at
+                        )
+
+                    if self.medicine_name:
+                        self.recently_completed_medicine_times[
+                            self.medicine_name.strip()
+                        ] = completed_at
                 except GraspError as e:
                     self.get_logger().error(
                         "약통 파지 작업을 계속할 수 없어 전체 작업 중단: "
@@ -1184,6 +2034,9 @@ class PourPills:
                         f"현재 작업 실행 실패: {e}"
                     )
                     raise
+
+                finally:
+                    self.active_task_key = None
 
                 # 작업 중 들어온 ROS 메시지 처리
                 rclpy.spin_once(
@@ -1212,7 +2065,7 @@ def main(args=None):
         # 1. ROS2 노드 생성
         # --------------------------------------------------
         node = rclpy.create_node(
-            "pour_pills",
+            "pour_pills_opener",
             namespace=ROBOT_ID,
         )
 
@@ -1244,7 +2097,9 @@ def main(args=None):
             get_current_posx,
             release_force,
             release_compliance_ctrl,
+            get_tool_force,
             DR_BASE,
+            DR_TOOL,
             DR_MV_MOD_REL,
             DR_FC_MOD_REL,
             wait
@@ -1272,11 +2127,13 @@ def main(args=None):
             "get_current_posx": get_current_posx,
             "release_force": release_force,
             "release_compliance_ctrl": release_compliance_ctrl,
+            "get_tool_force": get_tool_force,
             "wait": wait
         }
 
         dsr_constants = {
             "DR_BASE": DR_BASE,
+            "DR_TOOL": DR_TOOL,
             "DR_MV_MOD_REL": DR_MV_MOD_REL,
             "DR_FC_MOD_REL": DR_FC_MOD_REL,
         }

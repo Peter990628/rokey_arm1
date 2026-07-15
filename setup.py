@@ -38,8 +38,10 @@ setup(
             'test_tcp = rokey.test_tcp:main',
             'go_home = rokey.go_home:main',
             'test1 = rokey.test1:main',
-            'opener = rokey.opener:main',
-            'robot_total = rokey.robot_total:main',
-        ],
-    },
-)
+            'task_manager_bridge.py = rokey.task_manager_bridge:main',
+            'task_manager_test.py = rokey.task_manager_test:main',
+            'task_manager_fianl.py = rokey.task_manager_fianl:main',
+            'manipulator2.py = rokey.manipulator2:main'
+            ],
+        },
+    )
